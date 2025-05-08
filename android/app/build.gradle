@@ -111,6 +111,14 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    implementation(name: 'e1-V02.16.00-release', ext: 'aar')
+    implementation(name: 'darumamobile', ext: 'aar')
+    implementation(name: 'satelgin-8.0.1-release', ext: 'aar')
+    implementation(name: 'minipdvm8', ext: 'aar')
+
+    implementation("androidx.startup:startup-runtime:1.1.0")
+
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
