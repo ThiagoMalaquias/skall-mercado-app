@@ -1,4 +1,4 @@
-package com.skallmercadoapp
+package com.skallapp
 
 import android.app.Activity
 import android.content.Context
@@ -113,78 +113,6 @@ class ToastModules(private val reactContext: ReactApplicationContext) :
 			val result: WritableMap = Arguments.createMap()
 			val typePrinter = configsReceived.getString("typePrinter")
 
-			when (typePrinter) {
-				"printerConnectInternal" -> {
-						Printer.printerInternalImpStart()
-				}
-
-				"connectionPrinterExternIp" -> {
-						Printer.printerExternalImpIpStart(configsReceived)
-				}
-
-				"connectionPrinterExternUsb" -> {
-						Printer.printerExternalImpUsbStart(configsReceived)
-				}
-
-				"printerCupomTEF" -> {
-						Printer.imprimeCupomTEF(configsReceived)
-				}
-
-				"printerText" -> {
-						Printer.imprimeTexto(configsReceived)
-				}
-
-				"printerBarCode" -> {
-						Printer.imprimeBarCode(configsReceived)
-				}
-
-				"printerBarCodeTypeQrCode" -> {
-						Printer.imprimeQR_CODE(configsReceived)
-				}
-
-				"printerImage" -> {
-						Printer.imprimeImagem(configsReceived)
-				}
-
-				"printerNFCe" -> {
-						Printer.imprimeXMLNFCe(configsReceived)
-				}
-
-				"printerSAT" -> {
-						Printer.imprimeXMLSAT(configsReceived)
-				}
-
-				"gavetaStatus" -> {
-						result.putString("statusGaveta", Printer.statusGaveta().toString())
-						reactContext
-								.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-								.emit("eventStatusGaveta", result)
-				}
-
-				"abrirGaveta" -> {
-						Printer.abrirGaveta()
-				}
-
-				"jumpLine" -> {
-						Printer.AvancaLinhas(configsReceived)
-				}
-
-				"cutPaper" -> {
-						Printer.cutPaper(configsReceived)
-				}
-
-				"statusPrinter" -> {
-						result.putString("statusPrinter", Printer.statusSensorPapel().toString())
-						reactContext
-								.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-								.emit("eventStatusPrinter", result)
-				}
-
-				"printerStop" -> {
-						Printer.printerStop()
-				}
-			}
-
 			result.putString("status", "called")
 			result.putString("typePrinter", typePrinter)
 
@@ -196,27 +124,64 @@ class ToastModules(private val reactContext: ReactApplicationContext) :
 
 	@RequiresApi(Build.VERSION_CODES.N)
 	@ReactMethod
-	fun testarImpressaoSimples(configsReceived: ReadableMap, promise: Promise) {
-    try {
-			val thisActivity = currentActivity
+	fun abreConexaoImpressora(configsReceived: ReadableMap, promise: Promise) {
+        try {
+                val thisActivity = currentActivity
 
-			if (thisActivity == null) {
-					promise.reject("NO_ACTIVITY", "Activity está nula.")
-					return
-			}
+                if (thisActivity == null) {
+                        promise.reject("NO_ACTIVITY", "Activity está nula.")
+                        return
+                }
 
-			Termica.setContext(thisActivity)
+                Termica.setActivity(thisActivity);
 
-			val resultadoConexao = Termica.AbreConexaoImpressora(6, "M8", "", 0)
-			if (resultadoConexao == 0) {
-				val resultImpressao = Termica.ImpressaoTexto("Teste de impressão direta\n", 1, 0, 10)
-				promise.resolve("Impressão enviada com sucesso $resultImpressao")
-			} else {
-				promise.reject("CONNECTION_ERROR", "Erro ao conectar com impressora: $resultadoConexao")
-			} 
-    } catch (e: Exception) {
-			Log.e("Termica", "Erro no teste de impressão", e)
-			promise.reject("ERROR", "Erro ao imprimir", e)
-    }
+                Termica.AbreConexaoImpressora(5, "", "", 0)
+        } catch (e: Exception) {
+                Log.e("Termica", "Erro no teste de impressão", e)
+                promise.reject("ERROR", "Erro ao imprimir", e)
+        }
 	}
+
+    @RequiresApi(Build.VERSION_CODES.N)
+	@ReactMethod
+	fun imprimeTexto(map: ReadableMap, promise: Promise) {
+        val text = map.getString("text") ?: ""
+        val align = map.getString("align") ?: "Esquerda"
+        val font = map.getString("font") ?: "FONT A"
+        val fontSize = map.getInt("fontSize")
+        val isBold = map.getBoolean("isBold")
+        val isUnderline = map.getBoolean("isUnderline")
+
+        val alignValue = when (align) {
+            "Esquerda" -> 0
+            "Centralizado" -> 1
+            else -> 2
+        }
+
+        var styleValue = 0
+        if (font == "FONT B") styleValue += 1
+        if (isUnderline) styleValue += 2
+        if (isBold) styleValue += 8
+
+        val resultImpressao = Termica.ImpressaoTexto(text, alignValue, styleValue, fontSize)
+        promise.resolve("Impressão enviada com sucesso $resultImpressao")
+	}
+
+    @RequiresApi(Build.VERSION_CODES.N)
+	@ReactMethod
+	fun avancaLinhas(map: ReadableMap, promise: Promise) {
+        val lines = map.getInt("quant");
+
+        Termica.AvancaPapel(lines);
+        promise.resolve("AvancaLinhas enviada com sucesso $lines")
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+	@ReactMethod
+	fun cutPaper(map: ReadableMap, promise: Promise) {
+        val lines = map.getInt("quant");
+
+        Termica.Corte(lines);
+        promise.resolve("cutPaper enviada com sucesso $lines")
+    }
 }

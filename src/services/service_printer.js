@@ -3,10 +3,13 @@ import { Alert, NativeModules } from 'react-native';
 var NativeModulesE1 = NativeModules.ToastModules;
 
 export default class PrinterService {
-    async sendFunctionToAndroid(mapParam) {
+    async sendStartConnectionPrinterIntern() {
+        const mapParam = {
+            "typePrinter": "printerConnectInternal",
+        };
+
         try {
-            const result = await NativeModulesE1.testarImpressaoSimples(mapParam);
-            Alert.alert('Resposta do módulo nativo:', JSON.stringify(result));
+            const result = await NativeModulesE1.abreConexaoImpressora(mapParam);
             return result;
         } catch (error) {
             Alert.alert('Erro ao chamar nativo:', error);
@@ -14,35 +17,7 @@ export default class PrinterService {
         }
     }
 
-    sendStartConnectionPrinterIntern() {
-        const mapParam = {
-            "typePrinter": "printerConnectInternal",
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    }
-
-    sendStartConnectionPrinterExternIp(printerModel, ip, port) {
-        const mapParam = {
-            "typePrinter": "connectionPrinterExternIp",
-            "printerModel": printerModel,
-            "ip": ip,
-            "port": port,
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    }
-
-    sendStartConnectionPrinterExternUsb(printerModel) {
-        const mapParam = {
-            "typePrinter": "connectionPrinterExternUsb",
-            "printerModel": printerModel,
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    }
-
-    sendPrinterText(text, align, isBold, isUnderline, fontFamily, fontSize) {
+    async sendPrinterText(text, align, isBold, isUnderline, fontFamily, fontSize) {
         const mapParam = {
             "typePrinter": "printerText",
             "text": text,
@@ -52,117 +27,32 @@ export default class PrinterService {
             "font": fontFamily,
             "fontSize": fontSize,
         };
-        this.sendFunctionToAndroid(mapParam);
+
+        try {
+            const result = await NativeModulesE1.imprimeTexto(mapParam);
+            Alert.alert('Resposta do módulo nativo:', JSON.stringify(result));
+            return result;
+        } catch (error) {
+            Alert.alert('Erro ao chamar nativo:', error);
+            return null;
+        }
     };
 
-    sendPrinterBarCode(barCodeType, text, height, width, align) {
-        const mapParam = {
-            "typePrinter": "printerBarCode",
-            "barCodeType": barCodeType,
-            "text": text,
-            "height": height,
-            "width": width,
-            "align": align,
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendPrinterQrCode(qrSize, text, align) {
-        const mapParam = {
-            "typePrinter": "printerBarCodeTypeQrCode",
-            "qrSize": qrSize,
-            "text": text,
-            "align": align,
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendPrinterImage(pathImage, isBase64) {
-        const mapParam = {
-            "typePrinter": "printerImage",
-            "pathImage": pathImage,
-            "isBase64": isBase64,
-        };
-        console.log(mapParam);
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendPrinterNFCe(xmlNFCe, indexcsc, csc, param) {
-        const mapParam = {
-            "typePrinter": "printerNFCe",
-            "xmlNFCe": xmlNFCe,
-            "indexcsc": indexcsc,
-            "csc": csc,
-            "param": param,
-        };
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendPrinterSAT(xmlSAT, param) {
-        const mapParam = {
-            "typePrinter": "printerSAT",
-            "xmlSAT": xmlSAT,
-            "param": param,
-        };
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendPrinterCupomTEF(base64) {
-        const mapParam = {
-            "typePrinter": "printerCupomTEF",
-            "base64": base64,
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    }
-
-    getStatusPrinter() {
-        const mapParam = {
-            "typePrinter": "statusPrinter",
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    getStatusGaveta() {
-        const mapParam = {
-            "typePrinter": "gavetaStatus",
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    sendOpenGaveta() {
-        const mapParam = {
-            "typePrinter": "abrirGaveta",
-        };
-
-        this.sendFunctionToAndroid(mapParam);
-    };
-
-    jumpLine(quant) {
+    async jumpLine(quant) {
         const mapParam = {
             "typePrinter": "jumpLine",
             "quant": quant,
         };
-        this.sendFunctionToAndroid(mapParam);
+
+        await NativeModulesE1.avancaLinhas(mapParam);
     };
 
-    cutPaper(quant) {
+    async cutPaper(quant) {
         const mapParam = {
             "typePrinter": "cutPaper",
             "quant": quant,
         };
-        this.sendFunctionToAndroid(mapParam);
-    }
 
-    printerStop() {
-        const mapParam = {
-            typePrinter: 'printerStop',
-        }
-
-        this.sendFunctionToAndroid(mapParam);
+        await NativeModulesE1.cutPaper(mapParam);
     }
 }

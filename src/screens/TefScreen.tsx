@@ -31,7 +31,7 @@ export function TefScreen() {
 
   const [valor, setValor] = useState('1000');
   const [numParcelas, setNumParcelas] = useState('1');
-  const [numIP, setNumIP] = useState('192.168.1.7');
+  const [numIP, setNumIP] = useState('192.168.1.11');
   const [paymentMethod, setPaymentMethod] = useState('Crédito');
   const [installmentType, setInstallmentType] = useState('Loja');
 
@@ -353,30 +353,23 @@ export function TefScreen() {
             <Text style={styles.labelText}>RETORNO</Text>
           </View>
 
-          {typeTEF === 'PayGo' ? (
-            <Image
-              style={styles.paygoImage}
-              source={{uri: `data:image/jpeg;base64,${image64}`}}
-            />
-          ) : (
-            <FlatList
-              data={listOfResults}
-              key={index => String(listOfResults)}
-              renderItem={({item}, index) => (
-                <>
-                  <Text key={index} style={styles.textList}>
-                    {item.time}:
-                  </Text>
-                  <Text key={index} style={styles.textList}>
-                    {item.text}
-                  </Text>
-                  <Text key={index} style={styles.textList}>
-                    -------------------------------------------
-                  </Text>
-                </>
-              )}
-            />
-          )}
+          <FlatList
+            data={listOfResults}
+            key={index => String(listOfResults)}
+            renderItem={({item}, index) => (
+              <>
+                <Text key={index} style={styles.textList}>
+                  {item.time}:
+                </Text>
+                <Text key={index} style={styles.textList}>
+                  {item.text}
+                </Text>
+                <Text key={index} style={styles.textList}>
+                  -------------------------------------------
+                </Text>
+              </>
+            )}
+          />
         </View>
       </View>
     </View>

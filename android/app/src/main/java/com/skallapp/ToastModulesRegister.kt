@@ -1,4 +1,4 @@
-package com.skallmercadoapp
+package com.skallapp
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
