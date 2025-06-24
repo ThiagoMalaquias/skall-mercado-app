@@ -1,4 +1,4 @@
-import React, {useRef, useState, useEffect} from 'react';
+import React, {useState, useEffect} from 'react';
 
 import {
   StyleSheet,
@@ -15,8 +15,8 @@ import {
 import {DeviceEventEmitter} from 'react-native';
 
 import PrinterService from '../services/service_printer';
-import SitefReturn from '../services/services_tef/msitef/sitefReturn';
-import SitefController from '../services/services_tef/msitef/sitefController';
+import SitefReturn from '../services/services_tef/sitefReturn';
+import SitefController from '../services/services_tef/sitefController';
 
 const printerService = new PrinterService();
 const sitefController = new SitefController();
@@ -24,26 +24,11 @@ const sitefReturn = new SitefReturn();
 
 export function TefScreen() {
   const [listOfResults, setListOfResults] = useState([]);
-
-  const [typeTEF, setTypeTEF] = useState('M-Sitef');
-
-  const [image64, setImage64] = useState('');
-
   const [valor, setValor] = useState('1000');
   const [numParcelas, setNumParcelas] = useState('1');
   const [numIP, setNumIP] = useState('192.168.1.11');
   const [paymentMethod, setPaymentMethod] = useState('Crédito');
   const [installmentType, setInstallmentType] = useState('Loja');
-
-  const numIPRef = useRef(null);
-
-  const buttonsTEFs = [
-    {
-      id: 'M-Sitef',
-      textButton: 'M-Sitef',
-      onPress: () => changeTypeTEF('M-Sitef'),
-    },
-  ];
 
   const buttonsPayment = [
     {
@@ -65,11 +50,11 @@ export function TefScreen() {
       invisible: false,
     },
     {
-      id: 'Todos',
+      id: 'Pix',
       icon: require('../icons/voucher.png'),
-      textButton: 'TODOS',
-      onPress: () => setPaymentMethod('Todos'),
-      invisible: typeTEF === 'TefElgin',
+      textButton: 'PIX',
+      onPress: () => setPaymentMethod('Pix'),
+      invisible: false,
     },
   ];
 
@@ -102,7 +87,7 @@ export function TefScreen() {
         setInstallmentType('Avista');
         setNumParcelas('1');
       },
-      invisible: paymentMethod === 'Débito' || typeTEF === 'M-Sitef',
+      invisible: paymentMethod === 'Débito',
     },
   ];
 
@@ -114,21 +99,12 @@ export function TefScreen() {
     printerService.sendStartConnectionPrinterIntern();
   }
 
-  function changeTypeTEF(tefChoosed: string) {
-    setPaymentMethod('Crédito');
-    setInstallmentType('Loja');
-    setNumParcelas('2');
-    setTypeTEF(tefChoosed);
-  }
-
   function startActionTEF(optionReceived: string) {
     sendSitefParams(optionReceived);
   }
 
   function sendSitefParams(optionReceived: string) {
-    // const numIPUnMask = numIPRef?.current.getRawValue();
-
-    if (numIPRef !== '' && isIpAdressValid()) {
+    if (isIpAdressValid()) {
       sitefController.sitefEntrys.setValue(valor);
       sitefController.sitefEntrys.setNumberInstallments(
         parseInt(numParcelas, 10),
@@ -168,7 +144,7 @@ export function TefScreen() {
     ) {
       Alert.alert('Alerta', 'Ocorreu um erro durante a transação.');
     } else {
-      if (sitefFunctions === 'SALE') {
+      if (sitefFunctions === 'SALE' || sitefFunctions === 'CONFIGS') {
         var textToPrinter = sitefReturn.vIACLIENTE();
 
         printerService.sendPrinterText(
@@ -221,22 +197,6 @@ export function TefScreen() {
     <View style={styles.mainView}>
       <View style={styles.menuView}>
         <View style={styles.configView}>
-          <View style={styles.paymentsButtonView}>
-            {buttonsTEFs.map(({id, textButton, onPress}, index) => (
-              <TouchableOpacity
-                style={[
-                  styles.typeTEFButton,
-                  id === typeTEF && styles.optionSelected,
-                ]}
-                key={index}
-                onPress={onPress}>
-                <Text style={[styles.buttonText, styles.optionText]}>
-                  {textButton}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           <View style={styles.mensageView}>
             <Text style={styles.labelText}>VALOR:</Text>
             <TextInput
@@ -263,19 +223,6 @@ export function TefScreen() {
               keyboardType="numeric"
               onChangeText={setNumParcelas}
               value={numParcelas}
-            />
-          </View>
-
-          <View style={styles.mensageView}>
-            <Text style={styles.labelText}>IP:</Text>
-            <TextInput
-              placeholder={'000.000.0.000'}
-              style={styles.inputMensage}
-              editable={
-                typeTEF === 'PayGo' || typeTEF === 'M-Sitef' ? false : true
-              }
-              onChangeText={setNumIP}
-              value={numIP}
             />
           </View>
 
@@ -338,12 +285,8 @@ export function TefScreen() {
 
           <View style={styles.submitionButtonsView}>
             <TouchableOpacity
-              style={[
-                styles.submitionButton,
-                typeTEF === 'TefElgin' && styles.optionHidden,
-              ]}
-              onPress={() => startActionTEF('CONFIGS')}
-              disabled={typeTEF === 'TefElgin'}>
+              style={styles.submitionButton}
+              onPress={() => startActionTEF('CONFIGS')}>
               <Text style={styles.textButton}>CONFIGURAÇÃO</Text>
             </TouchableOpacity>
           </View>
@@ -358,13 +301,9 @@ export function TefScreen() {
             key={index => String(listOfResults)}
             renderItem={({item}, index) => (
               <>
-                <Text key={index} style={styles.textList}>
-                  {item.time}:
-                </Text>
-                <Text key={index} style={styles.textList}>
-                  {item.text}
-                </Text>
-                <Text key={index} style={styles.textList}>
+                <Text key={index}>{item.time}:</Text>
+                <Text key={index}>{item.text}</Text>
+                <Text key={index}>
                   -------------------------------------------
                 </Text>
               </>
@@ -401,6 +340,7 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '80%',
     justifyContent: 'space-between',
+    marginTop: 10,
   },
   mensageView: {
     flexDirection: 'row',

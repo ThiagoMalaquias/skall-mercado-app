@@ -1,4 +1,4 @@
-import {NativeModules} from 'react-native';
+import { NativeModules } from 'react-native';
 
 var NativeModulesE1 = NativeModules.ToastModules;
 

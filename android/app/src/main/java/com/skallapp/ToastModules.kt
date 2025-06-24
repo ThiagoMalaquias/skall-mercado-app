@@ -106,22 +106,6 @@ class ToastModules(private val reactContext: ReactApplicationContext) :
       thisActivity?.startActivityForResult(intentToMsitef, 4321)
   }
 
-  @RequiresApi(Build.VERSION_CODES.N)
-  @ReactMethod
-  fun sendOptionsClassPrinter(configsReceived: ReadableMap, promise: Promise) {
-		try {
-			val result: WritableMap = Arguments.createMap()
-			val typePrinter = configsReceived.getString("typePrinter")
-
-			result.putString("status", "called")
-			result.putString("typePrinter", typePrinter)
-
-			promise.resolve(result)
-		} catch (e: Exception) {
-			promise.reject("ERROR", "Erro ao processar", e)
-		}
-  }
-
 	@RequiresApi(Build.VERSION_CODES.N)
 	@ReactMethod
 	fun abreConexaoImpressora(configsReceived: ReadableMap, promise: Promise) {

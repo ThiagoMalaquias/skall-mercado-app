@@ -9,8 +9,7 @@ export default class PrinterService {
         };
 
         try {
-            const result = await NativeModulesE1.abreConexaoImpressora(mapParam);
-            return result;
+            return await NativeModulesE1.abreConexaoImpressora(mapParam);
         } catch (error) {
             Alert.alert('Erro ao chamar nativo:', error);
             return null;
@@ -29,9 +28,7 @@ export default class PrinterService {
         };
 
         try {
-            const result = await NativeModulesE1.imprimeTexto(mapParam);
-            Alert.alert('Resposta do módulo nativo:', JSON.stringify(result));
-            return result;
+            return await NativeModulesE1.imprimeTexto(mapParam);
         } catch (error) {
             Alert.alert('Erro ao chamar nativo:', error);
             return null;

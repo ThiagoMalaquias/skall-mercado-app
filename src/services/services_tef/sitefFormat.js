@@ -35,8 +35,9 @@ export default class SitefFormat {
         mapMsiTef.transacoesHabilitadas = '16';
         mapMsiTef.numParcelas = null;
       }
-      if (sitefEntrys.getPaymentMethod() === 'Todos') {
-        mapMsiTef.restricoes = 'transacoesHabilitadas=16';
+      if (sitefEntrys.getPaymentMethod() === 'Pix') {
+        mapMsiTef.restricoes = 'transacoesHabilitadas=16;26;27';
+        mapMsiTef.cnpj_automacao = '39824490000186';
         mapMsiTef.transacoesHabilitadas = null;
         mapMsiTef.numParcelas = null;
       }
