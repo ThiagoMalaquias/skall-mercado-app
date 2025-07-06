@@ -5,6 +5,7 @@ export default class SitefEntrys {
     this.ip = '192.168.0.15';
     this.paymentMethod = 'Crédito';
     this.installmentsMethod = 'Loja';
+    this.empresaSitef = '00000000';
   }
 
   getValue() {
@@ -27,6 +28,10 @@ export default class SitefEntrys {
     return this.installmentsMethod;
   }
 
+  getEmpresaSitef() {
+    return this.empresaSitef;
+  }
+
   setValue(value) {
     this.value = value;
   }
@@ -37,6 +42,10 @@ export default class SitefEntrys {
 
   setIp(ip) {
     this.ip = ip;
+  }
+
+  setEmpresaSitef(empresaSitef) {
+    this.empresaSitef = empresaSitef;
   }
 
   setPaymentMethod(paymentMethod) {

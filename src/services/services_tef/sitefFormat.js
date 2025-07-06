@@ -2,7 +2,7 @@ export default class SitefFormat {
   formatSitefEntrysToJson(sitefFunctions, sitefEntrys) {
     let mapMsiTef = new Map();
 
-    mapMsiTef.empresaSitef = '00000000';
+    mapMsiTef.empresaSitef = sitefEntrys.getEmpresaSitef();
     mapMsiTef.enderecoSitef = sitefEntrys.getIp();
     mapMsiTef.operador = '0001';
     mapMsiTef.data = '20200324';
@@ -11,6 +11,7 @@ export default class SitefFormat {
     mapMsiTef.valor = sitefEntrys.getValue().toString();
     mapMsiTef.CNPJ_CPF = '14200166000166';
     mapMsiTef.comExterna = '0';
+    mapMsiTef.tipoPinpad = 'ANDROID_USB';
 
     if (sitefFunctions === 'SALE') {
       mapMsiTef.modalidade = this.paymentToYourCode(
@@ -45,19 +46,24 @@ export default class SitefFormat {
     if (sitefFunctions === 'CONFIGS') {
       mapMsiTef.modalidade = '110';
       mapMsiTef.isDoubleValidation = '0';
-      mapMsiTef.restricoes = null;
+      mapMsiTef.restricoes = 'TransacoesAdicionaisHabilitadas=7;8;3919';
       mapMsiTef.transacoesHabilitadas = null;
       mapMsiTef.caminhoCertificadoCA = 'ca_cert_perm';
-      mapMsiTef.restricoes = 'transacoesHabilitadas=16;26;27';
+    }
+
+    if (sitefFunctions === 'REIMPRESSAO') {
+      mapMsiTef.modalidade = '113';
+      mapMsiTef.transacoesHabilitadas = '58';
     }
 
     if (sitefFunctions === 'CANCEL') {
       mapMsiTef.modalidade = '200';
       mapMsiTef.transacoesHabilitadas = null;
       mapMsiTef.isDoubleValidation = '0';
-      mapMsiTef.restricoes = null;
+      mapMsiTef.restricoes = 'TransacoesAdicionaisHabilitadas=7;8;3919';
       mapMsiTef.caminhoCertificadoCA = 'ca_cert_perm';
     }
+
     return mapMsiTef;
   }
 

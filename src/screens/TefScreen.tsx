@@ -29,6 +29,7 @@ export function TefScreen() {
   const [numIP, setNumIP] = useState('192.168.1.11');
   const [paymentMethod, setPaymentMethod] = useState('Crédito');
   const [installmentType, setInstallmentType] = useState('Loja');
+  const [empresaSitef, setEmpresaSitef] = useState('00000000');
 
   const buttonsPayment = [
     {
@@ -112,6 +113,7 @@ export function TefScreen() {
       sitefController.sitefEntrys.setIp(numIP);
       sitefController.sitefEntrys.setPaymentMethod(paymentMethod);
       sitefController.sitefEntrys.setInstallmentsMethods(installmentType);
+      sitefController.sitefEntrys.setEmpresaSitef(empresaSitef);
 
       try {
         sitefController.sendParamsSitef(optionReceived);
@@ -144,7 +146,11 @@ export function TefScreen() {
     ) {
       Alert.alert('Alerta', 'Ocorreu um erro durante a transação.');
     } else {
-      if (sitefFunctions === 'SALE' || sitefFunctions === 'CONFIGS') {
+      if (
+        sitefFunctions === 'SALE' ||
+        sitefFunctions === 'CONFIGS' ||
+        sitefFunctions === 'REIMPRESSAO'
+      ) {
         var textToPrinter = sitefReturn.vIACLIENTE();
 
         printerService.sendPrinterText(
@@ -197,6 +203,26 @@ export function TefScreen() {
     <View style={styles.mainView}>
       <View style={styles.menuView}>
         <View style={styles.configView}>
+          <View style={styles.mensageView}>
+            <Text style={styles.labelText}>EMPRESA:</Text>
+            <TextInput
+              style={styles.inputMensage}
+              keyboardType="default"
+              onChangeText={setEmpresaSitef}
+              value={empresaSitef}
+            />
+          </View>
+
+          <View style={styles.mensageView}>
+            <Text style={styles.labelText}>IP:</Text>
+            <TextInput
+              style={styles.inputMensage}
+              keyboardType="default"
+              onChangeText={setNumIP}
+              value={numIP}
+            />
+          </View>
+
           <View style={styles.mensageView}>
             <Text style={styles.labelText}>VALOR:</Text>
             <TextInput
@@ -288,6 +314,11 @@ export function TefScreen() {
               style={styles.submitionButton}
               onPress={() => startActionTEF('CONFIGS')}>
               <Text style={styles.textButton}>CONFIGURAÇÃO</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.submitionButton}
+              onPress={() => startActionTEF('REIMPRESSAO')}>
+              <Text style={styles.textButton}>REIMPRESSÃO</Text>
             </TouchableOpacity>
           </View>
         </View>
