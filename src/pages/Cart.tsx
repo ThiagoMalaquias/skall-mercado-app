@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import {useCart} from '../contexts/CartContext';
 
-export function CartScreen({navigation}: {navigation: any}) {
+export default function Cart({navigation}: {navigation: any}) {
   const {items, removeFromCart, updateQuantity, total} = useCart();
 
   return (

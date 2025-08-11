@@ -22,7 +22,7 @@ const printerService = new PrinterService();
 const sitefController = new SitefController();
 const sitefReturn = new SitefReturn();
 
-export function TefScreen() {
+export default function Tef() {
   const [listOfResults, setListOfResults] = useState([]);
   const [valor, setValor] = useState('1000');
   const [numParcelas, setNumParcelas] = useState('1');

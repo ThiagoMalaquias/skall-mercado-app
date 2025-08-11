@@ -2,7 +2,7 @@ import React from 'react';
 import {View, Text, Image, StyleSheet, ScrollView} from 'react-native';
 import {Product} from '../types/product';
 
-export function DetailsScreen({
+export default function Details({
   route,
   navigation,
 }: {
