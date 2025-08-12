@@ -1,7 +1,7 @@
 // app/checkout.tsx
 import React, {useMemo, useState, useEffect, useRef} from 'react';
 import {View, Text, Pressable, Alert, ActivityIndicator} from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons'; // RN puro; em Expo: '@expo/vector-icons/Ionicons'
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type PaymentMethod = 'credit' | 'debit' | 'pix';
 
@@ -12,7 +12,7 @@ export default function Checkout({
   route: any;
   navigation: any;
 }) {
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutos em segundos
+  const [timeLeft, setTimeLeft] = useState(180); // 2 minutos em segundos
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const {amount} = route.params || {}; // ✅ Correção: usar route.params em vez de navigation.state.params
@@ -51,17 +51,7 @@ export default function Checkout({
     intervalRef.current = setInterval(() => {
       setTimeLeft(prevTime => {
         if (prevTime <= 1) {
-          Alert.alert(
-            'Tempo Expirado',
-            'O tempo para finalizar o pagamento expirou. Você será redirecionado para a tela inicial.',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack(),
-              },
-            ],
-          );
-          return 0;
+          navigation.goBack();
         }
         return prevTime - 1;
       });
@@ -111,9 +101,7 @@ export default function Checkout({
             elevation: 3,
           })}>
           <Ionicons name="arrow-back" size={20} color="#0b1220" />
-          <Text style={{color: '#0b1220', fontWeight: '900'}}>
-            Voltar para Home
-          </Text>
+          <Text style={{color: '#0b1220', fontWeight: '900'}}>Voltar</Text>
         </Pressable>
 
         <View style={{alignItems: 'flex-end'}}>
@@ -185,6 +173,13 @@ export default function Checkout({
             color="#16a34a"
             loading={processing === 'pix'}
             onPress={() => onPay('pix')}
+          />
+
+          <BigPayButton
+            label="Transferência"
+            icon="qr-code-outline"
+            color="#d946ef"
+            onPress={() => navigation.navigate('Tef')}
           />
 
           <View

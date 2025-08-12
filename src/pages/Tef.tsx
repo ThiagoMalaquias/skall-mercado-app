@@ -22,7 +22,7 @@ const printerService = new PrinterService();
 const sitefController = new SitefController();
 const sitefReturn = new SitefReturn();
 
-export default function Tef() {
+export default function Tef({navigation}: {navigation: any}) {
   const [listOfResults, setListOfResults] = useState([]);
   const [valor, setValor] = useState('1000');
   const [numParcelas, setNumParcelas] = useState('1');
@@ -319,6 +319,14 @@ export default function Tef() {
               style={styles.submitionButton}
               onPress={() => startActionTEF('REIMPRESSAO')}>
               <Text style={styles.textButton}>REIMPRESSÃO</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.submitionButtonsView}>
+            <TouchableOpacity
+              style={styles.submitionButton}
+              onPress={() => navigation.goBack()}>
+              <Text style={styles.textButton}>VOLTAR</Text>
             </TouchableOpacity>
           </View>
         </View>
