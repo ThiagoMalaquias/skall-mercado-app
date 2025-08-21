@@ -151,20 +151,21 @@ export default function Tef({navigation}: {navigation: any}) {
         sitefFunctions === 'CONFIGS' ||
         sitefFunctions === 'REIMPRESSAO'
       ) {
-        var textToPrinter = sitefReturn.vIACLIENTE();
+        var textToPrinterVIACLIENTE = sitefReturn.vIACLIENTE();
+        var textToPrinterVIAESTABELECIMENTO = sitefReturn.vIAESTABELECIMENTO();
 
-        printerService.sendPrinterText(
-          textToPrinter,
-          'Centralizado',
-          false,
-          false,
-          'FONT B',
-          0,
-        );
-        printerService.jumpLine(10);
-        printerService.cutPaper(10);
+        // printerService.sendPrinterText(
+        //   textToPrinterVIACLIENTE,
+        //   'Centralizado',
+        //   false,
+        //   false,
+        //   'FONT B',
+        //   0,
+        // );
+        // printerService.jumpLine(10);
+        // printerService.cutPaper(10);
 
-        updateListOfResults(textToPrinter);
+        // updateListOfResults(textToPrinterVIAESTABELECIMENTO);
       }
 
       Alert.alert('Alerta', 'Ação realizada com sucesso.');

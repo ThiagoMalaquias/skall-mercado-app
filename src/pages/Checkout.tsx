@@ -47,22 +47,22 @@ export default function Checkout({
 
   const goHome = () => navigation.goBack();
 
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setTimeLeft(prevTime => {
-        if (prevTime <= 1) {
-          navigation.goBack();
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
+  // useEffect(() => {
+  //   intervalRef.current = setInterval(() => {
+  //     setTimeLeft(prevTime => {
+  //       if (prevTime <= 1) {
+  //         navigation.goBack();
+  //       }
+  //       return prevTime - 1;
+  //     });
+  //   }, 1000);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [navigation]);
+  //   return () => {
+  //     if (intervalRef.current) {
+  //       clearInterval(intervalRef.current);
+  //     }
+  //   };
+  // }, [navigation]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
