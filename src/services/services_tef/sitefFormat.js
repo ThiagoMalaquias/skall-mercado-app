@@ -9,10 +9,11 @@ export default class SitefFormat {
     mapMsiTef.hora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(11, 19).replace(/:/g, '');
     mapMsiTef.numeroCupom = Math.floor(Math.random() * 9999999).toString();
     mapMsiTef.valor = sitefEntrys.getValue().toString();
-    mapMsiTef.CNPJ_CPF = '14200166000166';
-    mapMsiTef.cnpj_automacao = '14200166000166';
-    mapMsiTef.comExterna = '0';
+    mapMsiTef.CNPJ_CPF = '24880034000186';
+    mapMsiTef.cnpj_automacao = '12127195000114';
+    mapMsiTef.comExterna = '4';
     mapMsiTef.tipoPinpad = 'ANDROID_USB';
+    mapMsiTef.tokenRegistroTls = '3847-7582-7426-2017';
 
     if (sitefFunctions === 'SALE') {
       mapMsiTef.modalidade = this.paymentToYourCode(
@@ -45,7 +46,6 @@ export default class SitefFormat {
       mapMsiTef.modalidade = '110';
       mapMsiTef.isDoubleValidation = '0';
       mapMsiTef.restricoes = 'TransacoesAdicionaisHabilitadas=7;8;3919';
-      mapMsiTef.caminhoCertificadoCA = 'ca_cert_perm';
     }
 
     if (sitefFunctions === 'REIMPRESSAO') {
@@ -57,7 +57,6 @@ export default class SitefFormat {
       mapMsiTef.modalidade = '200';
       mapMsiTef.isDoubleValidation = '0';
       mapMsiTef.restricoes = 'TransacoesAdicionaisHabilitadas=7;8;3919';
-      mapMsiTef.caminhoCertificadoCA = 'ca_cert_perm';
     }
 
     return mapMsiTef;

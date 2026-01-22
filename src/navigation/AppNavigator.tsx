@@ -1,6 +1,7 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import Loading from '../pages/Loading';
 import Home from '../pages/Home';
 import Details from '../pages/Details';
 import Cart from '../pages/Cart';
@@ -13,37 +14,16 @@ const Stack = createNativeStackNavigator();
 export function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Home"
-          component={Home}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name="Login"
-          component={Login}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name="Details"
-          component={Details}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name="Cart"
-          component={Cart}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name="Checkout"
-          component={Checkout}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name="Tef"
-          component={Tef}
-          options={{headerShown: false}}
-        />
+      <Stack.Navigator
+        initialRouteName="Loading"
+        screenOptions={{headerShown: false}}>
+        <Stack.Screen name="Loading" component={Loading} />
+        <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="Login" component={Login} />
+        <Stack.Screen name="Details" component={Details} />
+        <Stack.Screen name="Cart" component={Cart} />
+        <Stack.Screen name="Checkout" component={Checkout} />
+        <Stack.Screen name="Tef" component={Tef} />
       </Stack.Navigator>
     </NavigationContainer>
   );

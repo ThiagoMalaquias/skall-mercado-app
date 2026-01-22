@@ -26,10 +26,10 @@ export default function Tef({navigation}: {navigation: any}) {
   const [listOfResults, setListOfResults] = useState([]);
   const [valor, setValor] = useState('1000');
   const [numParcelas, setNumParcelas] = useState('1');
-  const [numIP, setNumIP] = useState('192.168.1.11');
+  const [numIP, setNumIP] = useState('tls-prod.fiservapp.com');
   const [paymentMethod, setPaymentMethod] = useState('Crédito');
   const [installmentType, setInstallmentType] = useState('Loja');
-  const [empresaSitef, setEmpresaSitef] = useState('00000000');
+  const [empresaSitef, setEmpresaSitef] = useState('24880034');
 
   const buttonsPayment = [
     {
@@ -165,7 +165,10 @@ export default function Tef({navigation}: {navigation: any}) {
         // printerService.jumpLine(10);
         // printerService.cutPaper(10);
 
-        // updateListOfResults(textToPrinterVIAESTABELECIMENTO);
+        updateListOfResults(
+          textToPrinterVIACLIENTE,
+          textToPrinterVIAESTABELECIMENTO,
+        );
       }
 
       Alert.alert('Alerta', 'Ação realizada com sucesso.');
@@ -173,28 +176,19 @@ export default function Tef({navigation}: {navigation: any}) {
   }
 
   function isIpAdressValid() {
-    let ipValid = false;
-
-    if (
-      /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
-        numIP,
-      )
-    ) {
-      ipValid = true;
-      return ipValid;
-    } else {
-      ipValid = false;
-      return ipValid;
-    }
+    return true;
   }
 
-  function updateListOfResults(textToPrinter: string) {
+  function updateListOfResults(
+    textToPrinterVIACLIENTE: string,
+    textToPrinterVIAESTABELECIMENTO: string,
+  ) {
     const copyOfListResultsActual = Array.from(listOfResults);
 
     copyOfListResultsActual.unshift({
       id: Math.floor(Math.random() * 9999999).toString(),
       time: new Date().toLocaleString('pt-BR'),
-      text: textToPrinter,
+      text: textToPrinterVIACLIENTE + '\n' + textToPrinterVIAESTABELECIMENTO,
     });
 
     setListOfResults(copyOfListResultsActual);
