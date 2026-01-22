@@ -2,18 +2,19 @@ import React, {useEffect} from 'react';
 import {View, ActivityIndicator, StyleSheet} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 export default function Loading({navigation}: {navigation: any}) {
   useEffect(() => {
-    checkAuth();
-  }, []);
+    checkAuth(navigation);
+  }, [navigation]);
 
-  const checkAuth = async () => {
+  const checkAuth = async (navigation: any) => {
     try {
-      const token = await AsyncStorage.getItem('@PayEvo:token');
+      const filiaId = await AsyncStorage.getItem('@SkallApp:filiaId');
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (token && token.trim() !== '') {
+      if (filiaId && filiaId.trim() !== '') {
         navigation.replace('Home');
       } else {
         navigation.replace('Login');

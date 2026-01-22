@@ -40,7 +40,7 @@ function callAction(path: string, options: any, onProgress = null) {
                 data.error === 'User not authenticated or not found')) ||
             (data.message === 'Invalid JWT' && !reauthing)
           ) {
-            await AsyncStorage.setItem('@PayEvo:id', '');
+            await AsyncStorage.setItem('@SkallApp:filiaId', '');
             if (navigationCallback) {
               navigationCallback('Login');
             }
@@ -98,8 +98,8 @@ async function request(
 ) {
   const headers: HeadersInit = {};
 
-  const token = (await AsyncStorage.getItem('@PayEvo:token')) ?? '';
-  headers.Authorization = `Bearer ${token}`;
+  const filiaId = (await AsyncStorage.getItem('@SkallApp:filiaId')) ?? '';
+  headers['X-Filial-Id'] = filiaId;
 
   if (data && data.toString() === '[object Object]') {
     data = JSON.stringify(data);

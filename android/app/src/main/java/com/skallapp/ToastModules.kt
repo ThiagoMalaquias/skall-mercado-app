@@ -95,38 +95,38 @@ class ToastModules(private val reactContext: ReactApplicationContext) :
 
       val instanceBundle = Bundle()
 
-    //   val iterator = configsReceived.keySetIterator()
-    //   while (iterator.hasNextKey()) {
-    //       val key = iterator.nextKey()
-    //       instanceBundle.putString(key, configsReceived.getString(key))
+      val iterator = configsReceived.keySetIterator()
+      while (iterator.hasNextKey()) {
+          val key = iterator.nextKey()
+          instanceBundle.putString(key, configsReceived.getString(key))
+      }
+
+    //   instanceBundle.putString("empresaSitef", "24880034")
+    //   instanceBundle.putString("enderecoSitef", "tls-prod.fiservapp.com:443")
+    //   instanceBundle.putString("operador", "0001")
+    //   instanceBundle.putString("data", "20260114")
+    //   instanceBundle.putString("hora", "143000")
+    //   instanceBundle.putString("numeroCupom", "1")
+    //   instanceBundle.putString("valor", "5000")
+    //   instanceBundle.putString("CNPJ_CPF", "24880034000186")
+    //   instanceBundle.putString("cnpj_automacao", "12127195000114")
+    //   instanceBundle.putString("comExterna", "4")
+    //   instanceBundle.putString("tipoPinpad", "ANDROID_USB")
+    //   instanceBundle.putString("tokenRegistroTls", "1966-8580-0907-8897");
+
+
+    //   if (configsReceived.getString("modalidade") == "3") {
+    //     instanceBundle.putString("timeoutColeta", "30")
+    //     instanceBundle.putString("modalidade", "3")
+    //     instanceBundle.putString("transacoesHabilitadas", "26")
+    //     instanceBundle.putString("numParcelas", "1")
     //   }
 
-      instanceBundle.putString("empresaSitef", "24880034")
-      instanceBundle.putString("enderecoSitef", "tls-prod.fiservapp.com:443")
-      instanceBundle.putString("operador", "0001")
-      instanceBundle.putString("data", "20260114")
-      instanceBundle.putString("hora", "143000")
-      instanceBundle.putString("numeroCupom", "1")
-      instanceBundle.putString("valor", "5000")
-      instanceBundle.putString("CNPJ_CPF", "24880034000186")
-      instanceBundle.putString("cnpj_automacao", "12127195000114")
-      instanceBundle.putString("comExterna", "4")
-      instanceBundle.putString("tipoPinpad", "ANDROID_USB")
-      instanceBundle.putString("tokenRegistroTls", "1966-8580-0907-8897");
-
-
-      if (configsReceived.getString("modalidade") == "3") {
-        instanceBundle.putString("timeoutColeta", "30")
-        instanceBundle.putString("modalidade", "3")
-        instanceBundle.putString("transacoesHabilitadas", "26")
-        instanceBundle.putString("numParcelas", "1")
-      }
-
-      if (configsReceived.getString("modalidade") == "110") {
-        instanceBundle.putString("modalidade", "110")
-        instanceBundle.putString("isDoubleValidation", "0")
-        instanceBundle.putString("restricoes", "TransacoesAdicionaisHabilitadas=7;8;3919")
-      }
+    //   if (configsReceived.getString("modalidade") == "110") {
+    //     instanceBundle.putString("modalidade", "110")
+    //     instanceBundle.putString("isDoubleValidation", "0")
+    //     instanceBundle.putString("restricoes", "TransacoesAdicionaisHabilitadas=7;8;3919")
+    //   }
       
       intentToMsitef.putExtras(instanceBundle)
 

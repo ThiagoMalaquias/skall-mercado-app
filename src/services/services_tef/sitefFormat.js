@@ -2,6 +2,7 @@ export default class SitefFormat {
   formatSitefEntrysToJson(sitefFunctions, sitefEntrys) {
     let mapMsiTef = new Map();
 
+    // PROD
     mapMsiTef.empresaSitef = sitefEntrys.getEmpresaSitef();
     mapMsiTef.enderecoSitef = sitefEntrys.getIp();
     mapMsiTef.operador = '0001';
@@ -13,7 +14,20 @@ export default class SitefFormat {
     mapMsiTef.cnpj_automacao = '12127195000114';
     mapMsiTef.comExterna = '4';
     mapMsiTef.tipoPinpad = 'ANDROID_USB';
-    mapMsiTef.tokenRegistroTls = '3847-7582-7426-2017';
+    mapMsiTef.tokenRegistroTls = '1966-8580-0907-8897';
+
+    // DEV
+    // mapMsiTef.empresaSitef = "00000000";
+    // mapMsiTef.enderecoSitef = "192.168.1.11";
+    // mapMsiTef.operador = "0001";
+    // mapMsiTef.data = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    // mapMsiTef.hora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(11, 19).replace(/:/g, "");
+    // mapMsiTef.numeroCupom = Math.floor(Math.random() * 9999999).toString();
+    // mapMsiTef.valor = sitefEntrys.getValue().toString();
+    // mapMsiTef.CNPJ_CPF = "00000000000000";
+    // mapMsiTef.cnpj_automacao = "00000000000000";
+    // mapMsiTef.comExterna = "0";
+    // mapMsiTef.tipoPinpad = "ANDROID_USB";
 
     if (sitefFunctions === 'SALE') {
       mapMsiTef.modalidade = this.paymentToYourCode(
@@ -21,18 +35,8 @@ export default class SitefFormat {
       );
 
       if (sitefEntrys.getPaymentMethod() === 'Crédito') {
-        if (
-          sitefEntrys.getNumberInstallments() === 1 ||
-          sitefEntrys.getNumberInstallments() === 0
-        ) {
-          mapMsiTef.transacoesHabilitadas = '26';
-        } else if (sitefEntrys.getInstallmentsMethods() === 'Loja') {
-          mapMsiTef.transacoesHabilitadas = '27';
-        } else if (sitefEntrys.getInstallmentsMethods() === 'Adm') {
-          mapMsiTef.transacoesHabilitadas = '28';
-        }
-
-        mapMsiTef.numParcelas = sitefEntrys.getNumberInstallments().toString();
+        mapMsiTef.transacoesHabilitadas = '26';
+        mapMsiTef.numParcelas = '1';
       }
       if (sitefEntrys.getPaymentMethod() === 'Débito') {
         mapMsiTef.transacoesHabilitadas = '16';
@@ -69,7 +73,7 @@ export default class SitefFormat {
       case 'Débito':
         return '2';
       default:
-        return '0';
+        return '122';
     }
   }
 }

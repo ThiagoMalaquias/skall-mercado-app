@@ -1,69 +1,54 @@
 // app/home.tsx
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   FlatList,
   ScrollView,
   useWindowDimensions,
   Alert,
   StyleSheet,
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type Category = {id: string; name: string};
-type Product = {id: string; name: string; price: number; categoryId: string};
+import { get } from '../utils/request';
+
+type Category = {id: string; nome: string};
+type Product = {id: string; descricao_cupom: string; preco: number; grupo_produto_id: string, imagem: string, codigo_venda: string};
 type CartItem = {product: Product; qty: number};
-
-const CATEGORIES: Category[] = [
-  {id: 'all', name: 'Todas'},
-  {id: '1', name: 'Bebidas'},
-  {id: '2', name: 'Lanches'},
-  {id: '3', name: 'Doces'},
-  {id: '4', name: 'Higiene'},
-  {id: '5', name: 'Limpeza'},
-];
-
-const PRODUCTS: Product[] = Array.from({length: 60}).map((_, i) => ({
-  id: String(i + 1),
-  name: `Produto ${i + 1}`,
-  price: Number((Math.random() * 90 + 5).toFixed(2)),
-  categoryId: CATEGORIES[(i % (CATEGORIES.length - 1)) + 1].id,
-}));
-
 
 
 export default function Home({navigation}: {navigation: any}) {
   const {width, height} = useWindowDimensions();
   const isTablet = Math.min(width, height) >= 768;
 
-  // Proporções fixas (ajuste se quiser)
-  // const LEFT_FLEX = 2; // categorias
-  // const CENTER_FLEX = 5; // busca + produtos
-  // const RIGHT_FLEX = 3; // carrinho
-
   const [query, setQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [cart, setCart] = useState<Record<string, CartItem>>({});
-  const [centerWidth, setCenterWidth] = useState<number>(0);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+
+  const handleImageError = (itemId: string) => {
+    setImageErrors(prev => ({...prev, [itemId]: true}));
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PRODUCTS.filter(p => {
-      const okCat = selectedCat === 'all' || p.categoryId === selectedCat;
-      const okTxt = !q || p.name.toLowerCase().includes(q);
+    return products.filter(p => {
+      const okCat = selectedCat === 'all' || p.grupo_produto_id === selectedCat;
+      const okTxt = !q || p.descricao_cupom.toLowerCase().includes(q);
       return okCat && okTxt;
     });
-  }, [query, selectedCat]);
+  }, [query, selectedCat, products]);
 
-  // Grid dinâmico conforme a largura da coluna central
-  const CARD_MIN = isTablet ? 180 : 140;
-  const numColumns = Math.max(
-    1,
-    Math.min(6, Math.floor(centerWidth / CARD_MIN)),
-  );
+  // Fixo em 3 colunas
+  const numColumns = 3;
 
   const addToCart = (product: Product) =>
     setCart(prev => {
@@ -90,88 +75,139 @@ export default function Home({navigation}: {navigation: any}) {
       return next;
     });
 
-  const clearCart = () => setCart({});
   const total = useMemo(
-    () => Object.values(cart).reduce((s, i) => s + i.product.price * i.qty, 0),
+    () => Object.values(cart).reduce((s, i) => s + i.product.preco * i.qty, 0),
     [cart],
   );
-  const checkout = () => {
+  
+  const checkout = async () => {
+    if (Object.keys(cart).length === 0) {
+      Alert.alert('Atenção', 'Nenhum item no carrinho');
+      return;
+    }
+
+    await AsyncStorage.setItem('@SkallApp:cart', JSON.stringify(cart));
+    await AsyncStorage.setItem('@SkallApp:total', total.toString());
     navigation.navigate('Checkout');
-    if (!Object.keys(cart).length) return Alert.alert('Carrinho vazio');
-    Alert.alert('Finalizar', `Total: R$ ${total.toFixed(2)}`);
   };
+
+  const getProducts = async () => {
+    try {
+      const data = await get('api/v1/produtos');
+      setProducts(data.body);
+    } catch (error) {
+      Alert.alert('Erro ao buscar produtos', 'Tente novamente mais tarde');
+    }
+  };
+
+  const getCategories = async () => {
+    try {
+      const data = await get('api/v1/grupo_produtos');
+      setCategories([{id: 'all', nome: 'Todas'}, ...data.body]);
+    } catch (error) {
+      Alert.alert('Erro ao buscar produtos', 'Tente novamente mais tarde');
+    }
+  };
+
+  useEffect(() => {
+    getProducts();
+    getCategories();
+
+    const intervalId = setInterval(() => {
+      getProducts();
+      getCategories();
+    }, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
       {/* Cabeçalho */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>PDV</Text>
-        <Text style={styles.headerSubtitle}>
-          3 colunas ajustadas à tela (sem scroll horizontal)
-        </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Ionicons name="storefront" size={24} color="#2563eb" />
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Skall Mercado</Text>
+              <Text style={styles.headerSubtitle}>PDV - Ponto de Venda</Text>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.headerInfo}>
+              {filtered.length} produto{filtered.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* 3 colunas em row, sem Scroll horizontal */}
+      {/* 2 colunas em row */}
       <View style={styles.columnsContainer}>
-        {/* Coluna 1 — Categorias */}
-        <View style={styles.categoriesColumn}>
-          <Text style={styles.categoriesTitle}>Categorias</Text>
-          <FlatList
-            data={CATEGORIES}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.categoriesList}
-            renderItem={({item: c}) => {
-              const active = selectedCat === c.id;
-              return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setSelectedCat(c.id)}
-                  style={({pressed}) => [
-                    styles.categoryButton,
-                    active
-                      ? styles.categoryButtonActive
-                      : styles.categoryButtonInactive,
-                    pressed && styles.categoryButtonPressed,
-                  ]}>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.categoryText,
+        {/* Coluna 1 — Categorias (horizontal) + Produtos */}
+        <View style={styles.productsColumn}>
+          {/* Categorias em linha horizontal */}
+          <View style={styles.categoriesContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesScrollContent}>
+              {categories.map(c => {
+                const active = selectedCat === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => setSelectedCat(c.id)}
+                    style={({pressed}) => [
+                      styles.categoryButton,
                       active
-                        ? styles.categoryTextActive
-                        : styles.categoryTextInactive,
+                        ? styles.categoryButtonActive
+                        : styles.categoryButtonInactive,
+                      pressed && styles.categoryButtonPressed,
                     ]}>
-                    {c.name}
-                  </Text>
-                </Pressable>
-              );
-            }}
-          />
-        </View>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.categoryText,
+                        active
+                          ? styles.categoryTextActive
+                          : styles.categoryTextInactive,
+                      ]}>
+                      {c.nome}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
 
-        {/* Coluna 2 — Busca + Produtos */}
-        <View
-          style={styles.centerColumn}
-          onLayout={e => setCenterWidth(e.nativeEvent.layout.width - 24)}>
-          {/* Grid de produtos (ajusta colunas automaticamente) */}
+          {/* Grid de produtos - 3 colunas fixas */}
           <FlatList
             data={filtered}
-            key={numColumns}
             numColumns={numColumns}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.productsList}
-            columnWrapperStyle={numColumns > 1 ? {gap: 12} : undefined}
+            columnWrapperStyle={styles.columnWrapper}
             renderItem={({item}) => (
-              <View
-                style={[
-                  styles.productCard,
-                  {flex: 1 / numColumns},
-                ]}>
+              <View style={styles.productCard}>
+                {!imageErrors[item.id] ? (
+                  <Image
+                    source={{uri: item.imagem}}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                    onError={() => handleImageError(item.id)}
+                  />
+                ) : (
+                  <View style={styles.productImagePlaceholder}>
+                    <Ionicons name="image-outline" size={40} color="#64748b" />
+                  </View>
+                )}
                 <Text style={styles.productName} numberOfLines={2}>
-                  {item.name}
+                  {item.descricao_cupom}
                 </Text>
                 <Text style={styles.productPrice}>
-                  R$ {item.price.toFixed(2)}
+                  R$ {String((item.preco / 100.0).toFixed(2)).replace('.', ',')}
                 </Text>
                 <Pressable
                   onPress={() => addToCart(item)}
@@ -179,14 +215,14 @@ export default function Home({navigation}: {navigation: any}) {
                     styles.addButton,
                     pressed && styles.addButtonPressed,
                   ]}>
-                  <Text style={styles.addButtonText}>Adicionar</Text>
+                  <Text style={styles.addButtonText}>+</Text>
                 </Pressable>
               </View>
             )}
           />
         </View>
 
-        {/* Coluna 3 — Carrinho */}
+        {/* Coluna 2 — Carrinho */}
         <View style={styles.cartColumn}>
           <View style={styles.cartHeader}>
             <Text style={styles.cartTitle}>Carrinho</Text>
@@ -203,10 +239,10 @@ export default function Home({navigation}: {navigation: any}) {
             {Object.values(cart).map(ci => (
               <View key={ci.product.id} style={styles.cartItem}>
                 <Text style={styles.cartItemName} numberOfLines={2}>
-                  {ci.product.name}
+                  {ci.product.descricao_cupom}
                 </Text>
                 <Text style={styles.cartItemPrice}>
-                  R$ {(ci.product.price * ci.qty).toFixed(2)} ({ci.qty}x)
+                  R$ {String(((ci.product.preco * ci.qty) / 100.0).toFixed(2)).replace('.', ',')} ({ci.qty}x)
                 </Text>
 
                 <View style={styles.cartItemControls}>
@@ -234,7 +270,7 @@ export default function Home({navigation}: {navigation: any}) {
           <View style={styles.cartFooter}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>R$ {total.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>R$ {String((total / 100.0).toFixed(2)).replace('.', ',')}</Text>
             </View>
 
             <Pressable
@@ -244,15 +280,6 @@ export default function Home({navigation}: {navigation: any}) {
                 pressed && styles.checkoutButtonPressed,
               ]}>
               <Text style={styles.checkoutButtonText}>Finalizar</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={clearCart}
-              style={({pressed}) => [
-                styles.clearButton,
-                pressed && styles.clearButtonPressed,
-              ]}>
-              <Text style={styles.clearButtonText}>Limpar</Text>
             </Pressable>
           </View>
         </View>
@@ -268,45 +295,83 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2a44',
+    backgroundColor: '#0f172a',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerTitleContainer: {
+    gap: 2,
   },
   headerTitle: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  headerInfo: {
+    color: '#93c5fd',
+    fontSize: 13,
+    fontWeight: '600',
   },
   columnsContainer: {
     flex: 1,
     flexDirection: 'row',
   },
-  // Coluna 1 - Categorias
-  categoriesColumn: {
-    flex: 2,
+  // Coluna 1 - Produtos (com categorias no topo)
+  productsColumn: {
+    flex: 7,
     minWidth: 0,
     borderRightWidth: 1,
     borderRightColor: '#1f2a44',
   },
-  categoriesTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    padding: 16,
+  productImage: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#1f2a44',
   },
-  categoriesList: {
+  productImagePlaceholder: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#1f2a44',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoriesContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2a44',
+    paddingVertical: 12,
+  },
+  categoriesScrollContent: {
     paddingHorizontal: 12,
-    paddingBottom: 24,
+    gap: 8,
   },
   categoryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 8,
     borderWidth: 1,
+    marginRight: 8,
   },
   categoryButtonActive: {
     backgroundColor: '#1f2a44',
@@ -321,6 +386,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontWeight: '500',
+    fontSize: 14,
   },
   categoryTextActive: {
     color: '#e2e8f0',
@@ -329,62 +395,43 @@ const styles = StyleSheet.create({
   categoryTextInactive: {
     color: '#94a3b8',
   },
-  // Coluna 2 - Busca + Produtos
-  centerColumn: {
-    flex: 5,
-    minWidth: 0,
-    borderRightWidth: 1,
-    borderRightColor: '#1f2a44',
-  },
-  searchContainer: {
-    padding: 16,
-    gap: 10,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#1f2a44',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  searchInput: {
-    color: 'white',
-    marginLeft: 8,
-    flex: 1,
-  },
-  searchInfo: {
-    color: '#94a3b8',
-  },
   productsList: {
     paddingHorizontal: 12,
+    paddingTop: 12,
     paddingBottom: 24,
   },
+  columnWrapper: {
+    gap: 12,
+  },
   productCard: {
+    flex: 1,
     backgroundColor: '#0f172a',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#1f2a44',
-    padding: 12,
+    padding: 8,
     marginBottom: 12,
-    gap: 8,
+    gap: 6,
+    maxWidth: '31%',
   },
   productName: {
     color: 'white',
     fontWeight: '700',
+    fontSize: 12,
   },
   productPrice: {
     color: '#93c5fd',
     fontWeight: '700',
+    fontSize: 14,
   },
   addButton: {
-    marginTop: 6,
     backgroundColor: '#2563eb',
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignSelf: 'flex-end',
   },
   addButtonPressed: {
     opacity: 0.9,
@@ -392,8 +439,9 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: 'white',
     fontWeight: '700',
+    fontSize: 16,
   },
-  // Coluna 3 - Carrinho
+  // Coluna 2 - Carrinho
   cartColumn: {
     flex: 3,
     minWidth: 0,
