@@ -1,5 +1,4 @@
-// app/home.tsx
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -10,6 +9,8 @@ import {
   Alert,
   StyleSheet,
   Image,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,44 +19,56 @@ import { get } from '../utils/request';
 
 type Category = {id: string; nome: string};
 type Product = {id: string; descricao_cupom: string; preco: number; grupo_produto_id: string, imagem: string, codigo_venda: string};
-type CartItem = {product: Product; qty: number};
-
+type CartItem = {product: Product; qty: number; addedAt: number};
 
 export default function Home({navigation}: {navigation: any}) {
   const {width, height} = useWindowDimensions();
-  const isTablet = Math.min(width, height) >= 768;
 
   const [query, setQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [cart, setCart] = useState<Record<string, CartItem>>({});
+  
+  const [page, setPage] = useState<number>(1);
+  const [perPage, setPerPage] = useState<number>(9);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(true);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const barcodeInputRef = useRef<TextInput>(null);
+  const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastBarcodeRef = useRef<string>('');
+  const isProcessingRef = useRef<boolean>(false);
+  const cartScrollViewRef = useRef<ScrollView>(null);
+
   const handleImageError = (itemId: string) => {
     setImageErrors(prev => ({...prev, [itemId]: true}));
   };
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return products.filter(p => {
-      const okCat = selectedCat === 'all' || p.grupo_produto_id === selectedCat;
-      const okTxt = !q || p.descricao_cupom.toLowerCase().includes(q);
-      return okCat && okTxt;
-    });
-  }, [query, selectedCat, products]);
+  const filtered = products;
 
-  // Fixo em 3 colunas
   const numColumns = 3;
 
-  const addToCart = (product: Product) =>
+  const addToCart = (product: Product) => {
     setCart(prev => {
       const it = prev[product.id];
+      const isNewProduct = !it;
       const qty = it ? it.qty + 1 : 1;
-      return {...prev, [product.id]: {product, qty}};
+      const addedAt = it ? it.addedAt : Date.now();
+
+      if (isNewProduct) {
+        setTimeout(() => {
+          cartScrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+
+      return {...prev, [product.id]: {product, qty, addedAt}};
     });
+  };
 
   const inc = (id: string) =>
     setCart(prev => {
@@ -75,11 +88,94 @@ export default function Home({navigation}: {navigation: any}) {
       return next;
     });
 
-  const total = useMemo(
-    () => Object.values(cart).reduce((s, i) => s + i.product.preco * i.qty, 0),
-    [cart],
-  );
+    const total = useMemo(
+      () => Object.values(cart).reduce((s, i) => s + i.product.preco * i.qty, 0),
+      [cart],
+    );
   
+    const clearCart = () => {
+      if (Object.keys(cart).length === 0) {
+        return;
+      }
+  
+      Alert.alert(
+        'Limpar carrinho',
+        'Tem certeza que deseja remover todos os itens do carrinho?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Limpar',
+            style: 'destructive',
+            onPress: () => {
+              setCart({});
+              AsyncStorage.removeItem('@SkallApp:cart');
+              AsyncStorage.removeItem('@SkallApp:total');
+            },
+          },
+        ]
+      );
+    };
+
+  const findProductByBarcode = useCallback(async (barcode: string) => {
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    try {
+      const cleanBarcode = barcode.trim();
+
+      if (cleanBarcode.length < 8) {
+        return;
+      }
+
+      if (lastBarcodeRef.current === cleanBarcode) {
+        return;
+      }
+
+      isProcessingRef.current = true;
+      lastBarcodeRef.current = cleanBarcode;
+
+      const data = await get(`api/v1/produtos?codigo_barras=${cleanBarcode}`);
+
+      if (data.body && data.body.length > 0) {
+        const product = data.body[0];
+        addToCart(product);
+        Alert.alert('Produto adicionado:', product.descricao_cupom);
+      } else {
+        Alert.alert('Produto não encontrado', `Código: ${cleanBarcode}`);
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível buscar o produto');
+    } finally {
+      setBarcodeInput('');
+      setTimeout(() => {
+        isProcessingRef.current = false;
+        lastBarcodeRef.current = '';
+
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 1000);
+      }, 500);
+    }
+  }, []);
+
+  const handleBarcodeChange = useCallback((text: string) => {
+    setBarcodeInput(text);
+    
+    if (barcodeTimeoutRef.current) {
+      clearTimeout(barcodeTimeoutRef.current);
+    }
+
+    barcodeTimeoutRef.current = setTimeout(() => {
+      if (text.length >= 8 && !isProcessingRef.current) {
+        findProductByBarcode(text);
+      }
+    }, 500);
+  }, [findProductByBarcode]);
+
   const checkout = async () => {
     if (Object.keys(cart).length === 0) {
       Alert.alert('Atenção', 'Nenhum item no carrinho');
@@ -91,26 +187,84 @@ export default function Home({navigation}: {navigation: any}) {
     navigation.navigate('Checkout');
   };
 
-  const getProducts = async () => {
-    try {
-      const data = await get('api/v1/produtos');
-      setProducts(data.body);
-    } catch (error) {
-      Alert.alert('Erro ao buscar produtos', 'Tente novamente mais tarde');
-    }
-  };
-
   const getCategories = async () => {
     try {
       const data = await get('api/v1/grupo_produtos');
-      setCategories([{id: 'all', nome: 'Todas'}, ...data.body]);
+      setCategories([{id: 'all', nome: 'TODAS'}, ...data.body]);
     } catch (error) {
       Alert.alert('Erro ao buscar produtos', 'Tente novamente mais tarde');
     }
   };
 
+  const getProducts = async (pageNumber: number = 1, append: boolean = false) => {
+    try {
+      if (!append) {
+        setLoadingMore(true);
+      }
+      
+      let url = `api/v1/produtos?page=${pageNumber}&per_page=${perPage}`;
+      
+      if (selectedCat && selectedCat !== 'all') {
+        url += `&grupo_produto_id=${selectedCat}`;
+      }
+      
+      if (query && query.trim()) {
+        url += `&search=${encodeURIComponent(query.trim())}`;
+      }
+      
+      const data = await get(url);
+      
+      if (append) {
+        setProducts(prev => [...prev, ...data.body]);
+      } else {
+        setProducts(data.body);
+      }
+      
+      setHasMore(data.body.length === perPage);
+    } catch (error) {
+      Alert.alert('Erro ao buscar produtos', 'Tente novamente mais tarde');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreProducts = async () => {
+    if (loadingMore || !hasMore) {
+      return;
+    }
+    
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await getProducts(nextPage, true);
+  };
+
   useEffect(() => {
-    getProducts();
+    getProducts(1, false);
+    getCategories();
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    getProducts(1, false);
+  }, [selectedCat, query]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
+    };
+  }, []);  
+
+  useEffect(() => {
+    getProducts(1, false);
     getCategories();
 
     const intervalId = setInterval(() => {
@@ -125,7 +279,19 @@ export default function Home({navigation}: {navigation: any}) {
 
   return (
     <View style={styles.container}>
-      {/* Cabeçalho */}
+      <View style={styles.barcodeInputWrapper} pointerEvents="none">
+        <TextInput
+          ref={barcodeInputRef}
+          value={barcodeInput}
+          onChangeText={handleBarcodeChange}
+          style={styles.barcodeInput}
+          showSoftInputOnFocus={false}
+          blurOnSubmit={false}
+          caretHidden
+          contextMenuHidden
+        />
+      </View>
+
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
@@ -136,23 +302,39 @@ export default function Home({navigation}: {navigation: any}) {
             </View>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.headerInfo}>
-              {filtered.length} produto{filtered.length !== 1 ? 's' : ''}
-            </Text>
+            <Pressable
+              onPress={clearCart}
+              style={({pressed}) => [
+                styles.clearCartButton,
+                pressed && styles.clearCartButtonPressed,
+                Object.keys(cart).length === 0 && styles.clearCartButtonDisabled,
+              ]}
+              disabled={Object.keys(cart).length === 0}>
+              <Ionicons 
+                name="trash-outline" 
+                size={20} 
+                color={Object.keys(cart).length === 0 ? '#475569' : '#ef4444'} 
+              />
+              <Text style={[
+                styles.clearCartText,
+                Object.keys(cart).length === 0 && styles.clearCartTextDisabled,
+              ]}>
+                Limpar
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
 
-      {/* 2 colunas em row */}
       <View style={styles.columnsContainer}>
-        {/* Coluna 1 — Categorias (horizontal) + Produtos */}
         <View style={styles.productsColumn}>
-          {/* Categorias em linha horizontal */}
           <View style={styles.categoriesContainer}>
             <ScrollView
               horizontal
+              keyboardShouldPersistTaps="always"
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesScrollContent}>
+              contentContainerStyle={styles.categoriesScrollContent}
+            >
               {categories.map(c => {
                 const active = selectedCat === c.id;
                 return (
@@ -182,47 +364,59 @@ export default function Home({navigation}: {navigation: any}) {
             </ScrollView>
           </View>
 
-          {/* Grid de produtos - 3 colunas fixas */}
           <FlatList
             data={filtered}
             numColumns={numColumns}
             keyExtractor={item => item.id}
+            keyboardShouldPersistTaps="always"
             contentContainerStyle={styles.productsList}
             columnWrapperStyle={styles.columnWrapper}
+            onEndReached={loadMoreProducts}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.loadingFooter}>
+                  <ActivityIndicator size="small" color="#2563eb" />
+                  <Text style={styles.loadingText}>Carregando mais produtos...</Text>
+                </View>
+              ) : null
+            }
             renderItem={({item}) => (
               <View style={styles.productCard}>
-                {!imageErrors[item.id] ? (
-                  <Image
-                    source={{uri: item.imagem}}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                    onError={() => handleImageError(item.id)}
-                  />
-                ) : (
-                  <View style={styles.productImagePlaceholder}>
-                    <Ionicons name="image-outline" size={40} color="#64748b" />
-                  </View>
-                )}
+                {/* Container da imagem com botão sobreposto */}
+                <View style={styles.imageContainer}>
+                  {!imageErrors[item.id] ? (
+                    <Image
+                      source={{uri: item.imagem}}
+                      style={styles.productImage}
+                      resizeMode="cover"
+                      onError={() => handleImageError(item.id)}
+                    />
+                  ) : (
+                    <View style={styles.productImagePlaceholder}>
+                      <Ionicons name="image-outline" size={40} color="#64748b" />
+                    </View>
+                  )}
+                  <Pressable
+                    onPress={() => addToCart(item)}
+                    style={({pressed}) => [
+                      styles.addButton,
+                      pressed && styles.addButtonPressed,
+                    ]}>
+                    <Text style={styles.addButtonText}>+</Text>
+                  </Pressable>
+                </View>
                 <Text style={styles.productName} numberOfLines={2}>
                   {item.descricao_cupom}
                 </Text>
                 <Text style={styles.productPrice}>
                   R$ {String((item.preco / 100.0).toFixed(2)).replace('.', ',')}
                 </Text>
-                <Pressable
-                  onPress={() => addToCart(item)}
-                  style={({pressed}) => [
-                    styles.addButton,
-                    pressed && styles.addButtonPressed,
-                  ]}>
-                  <Text style={styles.addButtonText}>+</Text>
-                </Pressable>
               </View>
             )}
           />
         </View>
 
-        {/* Coluna 2 — Carrinho */}
         <View style={styles.cartColumn}>
           <View style={styles.cartHeader}>
             <Text style={styles.cartTitle}>Carrinho</Text>
@@ -231,12 +425,17 @@ export default function Home({navigation}: {navigation: any}) {
             </Text>
           </View>
 
-          <ScrollView contentContainerStyle={styles.cartScrollContent}>
+          <ScrollView 
+            ref={cartScrollViewRef}
+            keyboardShouldPersistTaps="always"
+            contentContainerStyle={styles.cartScrollContent}>
             {Object.values(cart).length === 0 && (
               <Text style={styles.emptyCartText}>Nenhum item no carrinho</Text>
             )}
 
-            {Object.values(cart).map(ci => (
+            {Object.values(cart)
+              .sort((a, b) => a.addedAt - b.addedAt)
+              .map(ci => (
               <View key={ci.product.id} style={styles.cartItem}>
                 <Text style={styles.cartItemName} numberOfLines={2}>
                   {ci.product.descricao_cupom}
@@ -293,6 +492,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0b1220',
   },
+  barcodeInputWrapper: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    top: 0,
+    left: 0,
+  },
+  barcodeInput: {
+    width: 1,
+    height: 1,
+    fontSize: 1,
+    padding: 0,
+    margin: 0,
+  },  
   header: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -327,6 +541,31 @@ const styles = StyleSheet.create({
   headerRight: {
     alignItems: 'flex-end',
   },
+  clearCartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#1f2a44',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  clearCartButtonPressed: {
+    opacity: 0.8,
+  },
+  clearCartButtonDisabled: {
+    opacity: 0.5,
+  },
+  clearCartText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  clearCartTextDisabled: {
+    color: '#475569',
+  },
   headerInfo: {
     color: '#93c5fd',
     fontSize: 13,
@@ -336,7 +575,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
-  // Coluna 1 - Produtos (com categorias no topo)
   productsColumn: {
     flex: 7,
     minWidth: 0,
@@ -349,6 +587,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#1f2a44',
   },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+  },
   productImagePlaceholder: {
     width: '100%',
     height: 100,
@@ -356,6 +598,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2a44',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  addButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#2563eb',
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  addButtonPressed: {
+    opacity: 0.9,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  loadingText: {
+    color: '#94a3b8',
+    fontSize: 14,
   },
   categoriesContainer: {
     borderBottomWidth: 1,
@@ -424,24 +704,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-  addButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    alignSelf: 'flex-end',
-  },
-  addButtonPressed: {
-    opacity: 0.9,
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  // Coluna 2 - Carrinho
   cartColumn: {
     flex: 3,
     minWidth: 0,

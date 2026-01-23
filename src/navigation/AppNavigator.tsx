@@ -3,8 +3,6 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import Loading from '../pages/Loading';
 import Home from '../pages/Home';
-import Details from '../pages/Details';
-import Cart from '../pages/Cart';
 import Checkout from '../pages/Checkout';
 import Tef from '../pages/Tef';
 import Login from '../pages/Login';
@@ -20,8 +18,6 @@ export function AppNavigator() {
         <Stack.Screen name="Loading" component={Loading} />
         <Stack.Screen name="Home" component={Home} />
         <Stack.Screen name="Login" component={Login} />
-        <Stack.Screen name="Details" component={Details} />
-        <Stack.Screen name="Cart" component={Cart} />
         <Stack.Screen name="Checkout" component={Checkout} />
         <Stack.Screen name="Tef" component={Tef} />
       </Stack.Navigator>

@@ -1,4 +1,3 @@
-// app/checkout.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Pressable, Alert, ActivityIndicator, StyleSheet, FlatList } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -56,8 +55,8 @@ export default function Checkout({navigation}: {navigation: any}) {
 
   function sendSitefParams(optionReceived: string, paymentMethod: PaymentMethod) {
     if (isIpAdressValid()) {
-      // sitefController.sitefEntrys.setValue(parsedAmount.toString());
-      sitefController.sitefEntrys.setValue('100');
+      sitefController.sitefEntrys.setValue(parsedAmount.toString());
+      // sitefController.sitefEntrys.setValue('100');
       sitefController.sitefEntrys.setNumberInstallments(
         parseInt(numParcelas, 10),
       );
@@ -99,7 +98,11 @@ export default function Checkout({navigation}: {navigation: any}) {
     } else {
       if (sitefFunctions === 'SALE') {
         var textToPrinterVIACLIENTE = sitefReturn.vIACLIENTE();
-        var textToPrinterVIAESTABELECIMENTO = sitefReturn.vIAESTABELECIMENTO();
+
+        if (!textToPrinterVIACLIENTE.includes('SiTef')) {
+          Alert.alert('Alerta', 'Transação não autorizada');
+          return;
+        } 
 
         printerService.sendPrinterText(
           textToPrinterVIACLIENTE,
@@ -112,15 +115,9 @@ export default function Checkout({navigation}: {navigation: any}) {
         printerService.jumpLine(10);
         printerService.cutPaper(10);
 
-        updateListOfResults(
-          textToPrinterVIACLIENTE,
-          textToPrinterVIAESTABELECIMENTO,
-        );
-
+        updateListOfResults(textToPrinterVIACLIENTE);
         sendSaleToServer(paymentMethod);
       }
-
-      Alert.alert('Alerta', 'Ação realizada com sucesso.');
     }
   }
 
@@ -130,14 +127,13 @@ export default function Checkout({navigation}: {navigation: any}) {
 
   function updateListOfResults(
     textToPrinterVIACLIENTE: string,
-    textToPrinterVIAESTABELECIMENTO: string,
   ) {
     const copyOfListResultsActual: ResultItem[] = Array.from(listOfResults);
 
     copyOfListResultsActual.unshift({
       id: Math.floor(Math.random() * 9999999).toString(),
       time: new Date().toLocaleString('pt-BR'),
-      text: textToPrinterVIACLIENTE + '\n' + textToPrinterVIAESTABELECIMENTO,
+      text: textToPrinterVIACLIENTE,
     });
 
     setListOfResults(copyOfListResultsActual);

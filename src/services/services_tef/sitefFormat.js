@@ -3,8 +3,8 @@ export default class SitefFormat {
     let mapMsiTef = new Map();
 
     // PROD
-    mapMsiTef.empresaSitef = sitefEntrys.getEmpresaSitef();
-    mapMsiTef.enderecoSitef = sitefEntrys.getIp();
+    mapMsiTef.empresaSitef = "24880034";
+    mapMsiTef.enderecoSitef = "tls-prod.fiservapp.com";
     mapMsiTef.operador = '0001';
     mapMsiTef.data = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     mapMsiTef.hora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(11, 19).replace(/:/g, '');
@@ -14,7 +14,7 @@ export default class SitefFormat {
     mapMsiTef.cnpj_automacao = '12127195000114';
     mapMsiTef.comExterna = '4';
     mapMsiTef.tipoPinpad = 'ANDROID_USB';
-    mapMsiTef.tokenRegistroTls = '1966-8580-0907-8897';
+    mapMsiTef.tokenRegistroTls = '6758-1210-6876-9279';
 
     // DEV
     // mapMsiTef.empresaSitef = "00000000";
