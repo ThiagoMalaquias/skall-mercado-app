@@ -1,21 +1,28 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Pressable, Alert, ActivityIndicator, StyleSheet, FlatList } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import {useState, useEffect, useRef} from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+  FlatList,
+} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 import {DeviceEventEmitter} from 'react-native';
-
+import {FormatCentToBRL} from '../utils/formart_brl';
 import PrinterService from '../services/service_printer';
 import SitefReturn from '../services/services_tef/sitefReturn';
 import SitefController from '../services/services_tef/sitefController';
-import { post } from "../utils/request";
+import {post} from '../utils/request';
 
 const printerService = new PrinterService();
 const sitefController = new SitefController();
 const sitefReturn = new SitefReturn();
 
-type PaymentMethod = "Crédito" | "Débito" | "PIX";
+type PaymentMethod = 'Crédito' | 'Débito' | 'PIX';
 
 type CartItem = {product: any; qty: number};
 type ResultItem = {
@@ -32,38 +39,36 @@ export default function Checkout({navigation}: {navigation: any}) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
 
   const [listOfResults, setListOfResults] = useState<ResultItem[]>([]);
-  const [numParcelas, setNumParcelas] = useState('1');
-  const [numIP, setNumIP] = useState('tls-prod.fiservapp.com');
-  const [installmentType, setInstallmentType] = useState('Loja');
-  const [empresaSitef, setEmpresaSitef] = useState('24880034');
 
   const paymentMethods: Record<PaymentMethod, string> = {
-    'Crédito': 'CREDITO',
-    'Débito': 'DEBITO',
-    'PIX': 'PIX',
+    Crédito: 'CREDITO',
+    Débito: 'DEBITO',
+    PIX: 'PIX',
   };
-
 
   function startConnectPrinterIntern() {
     printerService.sendStartConnectionPrinterIntern();
   }
 
-  function startActionTEF(optionReceived: string, paymentMethod: PaymentMethod) {
+  function startActionTEF(
+    optionReceived: string,
+    paymentMethod: PaymentMethod,
+  ) {
     // sendSaleToServer(paymentMethod);
     sendSitefParams(optionReceived, paymentMethod);
   }
 
-  function sendSitefParams(optionReceived: string, paymentMethod: PaymentMethod) {
+  function sendSitefParams(
+    optionReceived: string,
+    paymentMethod: PaymentMethod,
+  ) {
     if (isIpAdressValid()) {
       sitefController.sitefEntrys.setValue(parsedAmount.toString());
-      // sitefController.sitefEntrys.setValue('100');
-      sitefController.sitefEntrys.setNumberInstallments(
-        parseInt(numParcelas, 10),
-      );
-      sitefController.sitefEntrys.setIp(numIP);
+      sitefController.sitefEntrys.setNumberInstallments(parseInt('1', 10));
+      sitefController.sitefEntrys.setIp('tls-prod.fiservapp.com');
       sitefController.sitefEntrys.setPaymentMethod(paymentMethod);
-      sitefController.sitefEntrys.setInstallmentsMethods(installmentType);
-      sitefController.sitefEntrys.setEmpresaSitef(empresaSitef);
+      sitefController.sitefEntrys.setInstallmentsMethods('Loja');
+      sitefController.sitefEntrys.setEmpresaSitef('24880034');
 
       try {
         sitefController.sendParamsSitef(optionReceived);
@@ -89,7 +94,10 @@ export default function Checkout({navigation}: {navigation: any}) {
     }
   }
 
-  function optionsReturnMsitef(sitefFunctions: string, paymentMethod: PaymentMethod) {
+  async function optionsReturnMsitef(
+    sitefFunctions: string,
+    paymentMethod: PaymentMethod,
+  ) {
     if (
       parseInt(sitefReturn.getcODRESP(), 10) < 0 &&
       sitefReturn.getcODAUTORIZACAO() === ''
@@ -102,21 +110,57 @@ export default function Checkout({navigation}: {navigation: any}) {
         if (!textToPrinterVIACLIENTE.includes('SiTef')) {
           Alert.alert('Alerta', 'Transação não autorizada');
           return;
-        } 
+        }
 
-        printerService.sendPrinterText(
-          textToPrinterVIACLIENTE,
-          'Centralizado',
-          false,
-          false,
-          'FONT B',
-          0,
-        );
-        printerService.jumpLine(10);
-        printerService.cutPaper(10);
+        const produtos = Object.values(cart).map(item => ({
+          id: item.product.id,
+          descricao: item.product.descricao_cupom,
+          valor_unitario: item.product.preco,
+          valor_total: item.product.preco * item.qty,
+          quantidade: item.qty,
+        }));
+
+        try {
+          const cabecalho = await buildCabecalhoNota();
+          await printerService.sendPrinterText(
+            cabecalho,
+            'Centralizado',
+            false,
+            false,
+            'FONT B',
+            0,
+          );
+          await printerService.jumpLine(1);
+
+          const tableText = buildProdutosTable(produtos);
+          await printerService.sendPrinterText(
+            tableText,
+            'Esquerda',
+            false,
+            false,
+            'FONT B',
+            0,
+          );
+
+          await printerService.jumpLine(4);
+
+          await printerService.sendPrinterText(
+            textToPrinterVIACLIENTE,
+            'Centralizado',
+            false,
+            false,
+            'FONT B',
+            0,
+          );
+
+          await printerService.jumpLine(15);
+          await printerService.cutPaper(15);
+        } catch (error) {
+          console.error('Erro ao imprimir:', error);
+        }
 
         updateListOfResults(textToPrinterVIACLIENTE);
-        sendSaleToServer(paymentMethod);
+        sendSaleToServer(paymentMethod, produtos);
       }
     }
   }
@@ -125,9 +169,96 @@ export default function Checkout({navigation}: {navigation: any}) {
     return true;
   }
 
-  function updateListOfResults(
-    textToPrinterVIACLIENTE: string,
+  async function buildCabecalhoNota(): Promise<string> {
+    const L_NOTECAB = 32;
+    const nomeLoja =
+      (await AsyncStorage.getItem('@SkallApp:filiaNome')) || 'Skall Mercado';
+    const dataHora = new Date().toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const center = (s: string) => {
+      const n = Math.max(0, L_NOTECAB - s.length);
+      const left = Math.floor(n / 2);
+      return ' '.repeat(left) + s.trim() + ' '.repeat(n - left);
+    };
+
+    const sep = '='.repeat(L_NOTECAB);
+    const line = '-'.repeat(L_NOTECAB);
+
+    const lines = [
+      sep,
+      center(nomeLoja),
+      '',
+      center('COMPROVANTE DE VENDA'),
+      center(dataHora),
+      line,
+    ];
+
+    return lines.join('\n');
+  }
+
+  function buildProdutosTable(
+    produtos: Array<{
+      quantidade: number;
+      descricao: string;
+      valor_unitario: number;
+      valor_total: number;
+    }>,
   ) {
+    const L = 32;
+    const qtdW = 3;
+    const descW = 14; // 14 para linha caber em 32 (3+1+14+1+6+1+6=32)
+    const vlunW = 6;
+    const vltotW = 6;
+    const sep = ' ';
+
+    const padR = (s: string, n: number) => s.padStart(n);
+    const padL = (s: string, n: number) =>
+      s.length > n ? s.slice(0, n - 3) + '...' : s.padEnd(n);
+
+    const line =
+      padR('QTD', qtdW) +
+      sep +
+      padL('DESCRICAO', descW) +
+      sep +
+      padR('VL.UN', vlunW) +
+      sep +
+      padR('VL.TOT', vltotW);
+    const header = line.slice(0, L);
+
+    const lines: string[] = [header, '-'.repeat(L)];
+
+    let totalCents = 0;
+    for (const p of produtos) {
+      totalCents += p.valor_total;
+      const vlun = FormatCentToBRL(p.valor_unitario);
+      const vltot = FormatCentToBRL(p.valor_total);
+      const desc = padL(p.descricao || '', descW);
+      const row =
+        String(Math.min(999, Math.max(0, Number(p.quantidade) || 0))).padStart(
+          qtdW,
+          '0',
+        ) +
+        sep +
+        desc +
+        sep +
+        padR(vlun, vlunW) +
+        sep +
+        padR(vltot, vltotW);
+      lines.push(row.slice(0, L));
+    }
+
+    lines.push('-'.repeat(L));
+    lines.push(padR('TOTAL: R$ ' + FormatCentToBRL(totalCents), L));
+    return lines.join('\n');
+  }
+
+  function updateListOfResults(textToPrinterVIACLIENTE: string) {
     const copyOfListResultsActual: ResultItem[] = Array.from(listOfResults);
 
     copyOfListResultsActual.unshift({
@@ -139,15 +270,15 @@ export default function Checkout({navigation}: {navigation: any}) {
     setListOfResults(copyOfListResultsActual);
   }
 
-  async function sendSaleToServer(paymentMethod: PaymentMethod) {
-    const produtos = Object.values(cart).map(item => ({
-      id: item.product.id,
-      descricao: item.product.descricao_cupom,
-      valor_unitario: item.product.preco,
-      valor_total: item.product.preco * item.qty,
-      quantidade: item.qty,
-    }));
-
+  async function sendSaleToServer(
+    paymentMethod: PaymentMethod,
+    produtos: Array<{
+      quantidade: number;
+      descricao: string;
+      valor_unitario: number;
+      valor_total: number;
+    }>,
+  ) {
     const venda = {
       metodo: paymentMethods[paymentMethod],
       valor: parsedAmount,
@@ -189,7 +320,6 @@ export default function Checkout({navigation}: {navigation: any}) {
     startConnectPrinterIntern();
   }, []);
 
-
   const goHome = () => navigation.goBack();
 
   // useEffect(() => {
@@ -222,26 +352,22 @@ export default function Checkout({navigation}: {navigation: any}) {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const isTimeLow = timeLeft <= 30;
 
   return (
     <View style={styles.container}>
-      {/* Cabeçalho com "Voltar" em destaque e Total em destaque */}
       <View style={styles.header}>
         <Pressable
           onPress={goHome}
-          style={({ pressed }) => [
+          style={({pressed}) => [
             styles.backButton,
-            { opacity: pressed ? 0.9 : 1 },
-          ]}
-        >
+            {opacity: pressed ? 0.9 : 1},
+          ]}>
           <Ionicons name="arrow-back" size={20} color="#0b1220" />
-          <Text style={styles.backButtonText}>
-            Voltar para Home
-          </Text>
+          <Text style={styles.backButtonText}>Voltar para Home</Text>
         </Pressable>
 
         <View style={styles.timeContainer}>
@@ -249,9 +375,13 @@ export default function Checkout({navigation}: {navigation: any}) {
             <Ionicons
               name="time-outline"
               size={14}
-              color={isTimeLow ? "#ef4444" : "#94a3b8"}
+              color={isTimeLow ? '#ef4444' : '#94a3b8'}
             />
-            <Text style={[styles.timeText, { color: isTimeLow ? "#ef4444" : "#94a3b8" }]}>
+            <Text
+              style={[
+                styles.timeText,
+                {color: isTimeLow ? '#ef4444' : '#94a3b8'},
+              ]}>
               {formatTime(timeLeft)}
             </Text>
           </View>
@@ -268,15 +398,12 @@ export default function Checkout({navigation}: {navigation: any}) {
               R$ {String((parsedAmount / 100.0).toFixed(2)).replace('.', ',')}
             </Text>
           </View>
-          <Text style={styles.paymentMethodsTitle}>
-            Formas de pagamento
-          </Text>
+          <Text style={styles.paymentMethodsTitle}>Formas de pagamento</Text>
 
           <BigPayButton
             label="Cartão de Crédito"
             icon="card-outline"
             color="#2563eb"
-            loading={processing === "Crédito"}
             onPress={() => startActionTEF('SALE', 'Crédito')}
           />
 
@@ -284,7 +411,6 @@ export default function Checkout({navigation}: {navigation: any}) {
             label="Cartão de Débito"
             icon="card"
             color="#0ea5e9"
-            loading={processing === "Débito"}
             onPress={() => startActionTEF('SALE', 'Débito')}
           />
 
@@ -292,8 +418,14 @@ export default function Checkout({navigation}: {navigation: any}) {
             label="PIX"
             icon="qr-code-outline"
             color="#16a34a"
-            loading={processing === "PIX"}
             onPress={() => startActionTEF('SALE', 'PIX')}
+          />
+
+          <BigPayButton
+            label="Voucher"
+            icon="cash-outline"
+            color="#16a34a"
+            onPress={() => startActionTEF('SALE', 'Crédito')}
           />
 
           <View style={styles.fiservInfo}>
@@ -308,21 +440,22 @@ export default function Checkout({navigation}: {navigation: any}) {
 
         {/* Bloco 2 — Comprovante da Fiserv */}
         <View style={styles.receiptColumn}>
-          <Text style={styles.receiptTitle}>
-            Comprovante da Transação
-          </Text>
+          <Text style={styles.receiptTitle}>Comprovante da Transação</Text>
 
           <View
             nativeID="fiserv-receipt-container"
-            style={styles.receiptContainer}
-          >
+            style={styles.receiptContainer}>
             <FlatList
               data={listOfResults}
               key={index => String(listOfResults)}
               renderItem={({item}, index) => (
                 <>
-                  <Text key={index} style={styles.receiptText}>{item.time}:</Text>
-                  <Text key={index} style={styles.receiptText}>{item.text}</Text>
+                  <Text key={index} style={styles.receiptText}>
+                    {item.time}:
+                  </Text>
+                  <Text key={index} style={styles.receiptText}>
+                    {item.text}
+                  </Text>
                   <Text key={index} style={styles.receiptText}>
                     -------------------------------------------
                   </Text>
@@ -354,108 +487,105 @@ function BigPayButton({
     <Pressable
       disabled={!!loading}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={({pressed}) => [
         styles.payButton,
-        { backgroundColor: color },
-        { opacity: loading ? 0.7 : pressed ? 0.9 : 1 },
-      ]}
-    >
+        {backgroundColor: color},
+        {opacity: loading ? 0.7 : pressed ? 0.9 : 1},
+      ]}>
       {loading ? (
         <ActivityIndicator size="small" color="#fff" />
       ) : (
         <Ionicons name={icon as any} size={22} color="#fff" />
       )}
       <Text style={styles.payButtonText}>
-        {loading ? "Processando..." : label}
+        {loading ? 'Processando...' : label}
       </Text>
     </Pressable>
   );
 }
 
-const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0b1220",
+    backgroundColor: '#0b1220',
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1f2a44",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderBottomColor: '#1f2a44',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   backButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    backgroundColor: "#f59e0b",
+    backgroundColor: '#f59e0b',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
   backButtonText: {
-    color: "#0b1220",
-    fontWeight: "900",
+    color: '#0b1220',
+    fontWeight: '900',
   },
   timeContainer: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   timeContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     marginTop: 4,
   },
   timeText: {
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: '900',
   },
   contentContainer: {
     flex: 1,
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   actionsColumn: {
     flex: 5,
     minWidth: 0,
     borderRightWidth: 1,
-    borderRightColor: "#1f2a44",
+    borderRightColor: '#1f2a44',
     padding: 16,
     gap: 16,
   },
   totalContainer: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   totalLabel: {
-    color: "#94a3b8",
+    color: '#94a3b8',
     fontSize: 12,
   },
   totalValue: {
-    color: "white",
+    color: 'white',
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: '900',
   },
   paymentMethodsTitle: {
-    color: "white",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   fiservInfo: {
     marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   fiservInfoText: {
-    color: "#94a3b8",
+    color: '#94a3b8',
   },
   receiptColumn: {
     flex: 5,
@@ -463,17 +593,17 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   receiptTitle: {
-    color: "white",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
     marginBottom: 12,
   },
   receiptContainer: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: '#0f172a',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1f2a44",
+    borderColor: '#1f2a44',
     padding: 12,
   },
   receiptText: {
@@ -482,18 +612,18 @@ const styles = StyleSheet.create({
   payButton: {
     paddingVertical: 18,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
     gap: 10,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 2,
   },
   payButtonText: {
-    color: "white",
-    fontWeight: "900",
+    color: 'white',
+    fontWeight: '900',
     fontSize: 16,
   },
 });
