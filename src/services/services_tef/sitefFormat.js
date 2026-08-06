@@ -14,7 +14,7 @@ export default class SitefFormat {
     mapMsiTef.cnpj_automacao = '12127195000114';
     mapMsiTef.comExterna = '4';
     mapMsiTef.tipoPinpad = 'ANDROID_USB';
-    mapMsiTef.tokenRegistroTls = '7174-4567-9308-1943';
+    mapMsiTef.tokenRegistroTls = sitefEntrys.getTokenRegistroTls();
 
     // DEV
     // mapMsiTef.empresaSitef = "00000000";

@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.view.WindowInsets
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 
 import androidx.annotation.RequiresApi;
@@ -169,4 +171,36 @@ class ToastModules(private val reactContext: ReactApplicationContext) :
         Termica.Corte(lines);
         promise.resolve("cutPaper enviada com sucesso $lines")
     }
+
+  /**
+   * Força o teclado virtual. Necessário em tablets PDV onde o leitor
+   * de código de barras se registra como teclado físico e o Android
+   * esconde o soft keyboard.
+   */
+  @ReactMethod
+  fun showSoftKeyboard() {
+    val activity = currentActivity ?: return
+    activity.runOnUiThread {
+      try {
+        val view = activity.currentFocus ?: activity.window.decorView
+        view.requestFocus()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          activity.window.insetsController?.show(WindowInsets.Type.ime())
+        }
+
+        val imm =
+          activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val shown = imm.showSoftInput(view, InputMethodManager.SHOW_FORCED)
+        if (!shown) {
+          imm.toggleSoftInput(
+            InputMethodManager.SHOW_FORCED,
+            InputMethodManager.HIDE_IMPLICIT_ONLY,
+          )
+        }
+      } catch (e: Exception) {
+        Log.e("ToastModules", "Erro ao exibir teclado", e)
+      }
+    }
+  }
 }

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.view.WindowManager
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -19,6 +20,8 @@ class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // adjustPan evita colapso de layout no tablet ao focar inputs
+    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
     enterImmersiveMode()
   }
 

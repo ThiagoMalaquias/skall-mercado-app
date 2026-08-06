@@ -11,8 +11,17 @@ import {
   ScrollView,
   useWindowDimensions,
   StyleSheet,
+  NativeModules,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const {ToastModules} = NativeModules;
+
+const forceShowKeyboard = () => {
+  if (Platform.OS === 'android') {
+    ToastModules?.showSoftKeyboard?.();
+  }
+};
 
 // Função para formatar telefone no formato (00) 00000-0000
 const formatPhone = (text: string): string => {
@@ -40,6 +49,7 @@ export default function Login({navigation}: {navigation: any}) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const emailInputRef = useRef<TextInput>(null);
   const phoneInputRef = useRef<TextInput>(null);
 
   const handlePhoneChange = (text: string) => {
@@ -58,16 +68,29 @@ export default function Login({navigation}: {navigation: any}) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({email: email, telefone: phone}),
+          body: JSON.stringify({
+            login: {
+              email,
+              telefone: phone,
+            },
+          }),
         },
       );
 
       const data = await response.json();
 
       if (response.ok) {
-        await AsyncStorage.setItem('@SkallApp:filiaId', String(data.id));
+        await AsyncStorage.setItem(
+          '@SkallApp:filiaId',
+          String(data.filial_id),
+        );
         await AsyncStorage.setItem('@SkallApp:filiaNome', data.nome_fantasia);
-        await AsyncStorage.setItem('@SkallApp:email', email);
+        await AsyncStorage.setItem(
+          '@SkallApp:usuarioId',
+          String(data.usuario_id),
+        );
+        await AsyncStorage.setItem('@SkallApp:usuarioNome', data.nome);
+        await AsyncStorage.setItem('@SkallApp:email', data.email);
         navigation.replace('Loading');
       } else {
         Alert.alert('Erro de login', data.message ?? 'Tente novamente');
@@ -79,7 +102,7 @@ export default function Login({navigation}: {navigation: any}) {
     }
   };
 
-  const disabled = loading || (!email && !phone);
+  const disabled = loading || !email.trim() || !phone.trim();
 
   const dynamicStyles = {
     maxFormWidth: isTablet ? (isLandscape ? 560 : 480) : 380,
@@ -90,92 +113,115 @@ export default function Login({navigation}: {navigation: any}) {
     titleMarginTop: isLandscape ? 4 : 8,
   };
 
+  const form = (
+    <ScrollView
+      keyboardShouldPersistTaps="always"
+      keyboardDismissMode="none"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {
+          paddingHorizontal: dynamicStyles.horizPadding,
+          paddingTop: dynamicStyles.scrollPadding,
+          paddingBottom: dynamicStyles.scrollPadding,
+        },
+      ]}
+      bounces={false}>
+      <View
+        style={[
+          styles.card,
+          {
+            maxWidth: dynamicStyles.maxFormWidth,
+            padding: dynamicStyles.cardPadding,
+          },
+        ]}>
+        <Text
+          style={[
+            styles.title,
+            {
+              fontSize: dynamicStyles.titleSize,
+              marginTop: dynamicStyles.titleMarginTop,
+            },
+          ]}>
+          Bem-vindo 👋
+        </Text>
+        <Text style={styles.subtitle}>Entre com seu E-mail e Telefone</Text>
+
+        <View style={styles.formContainer}>
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            ref={emailInputRef}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="seu@email.com"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            returnKeyType="next"
+            showSoftInputOnFocus
+            importantForAutofill="no"
+            onFocus={forceShowKeyboard}
+            onPressIn={() => {
+              emailInputRef.current?.focus();
+              forceShowKeyboard();
+            }}
+            onSubmitEditing={() => phoneInputRef.current?.focus()}
+            style={styles.input}
+          />
+          <Text style={[styles.label, styles.labelMargin]}>Telefone</Text>
+          <TextInput
+            ref={phoneInputRef}
+            value={phone}
+            onChangeText={handlePhoneChange}
+            placeholder="(00) 00000-0000"
+            placeholderTextColor="#9ca3af"
+            keyboardType="phone-pad"
+            returnKeyType="done"
+            showSoftInputOnFocus
+            importantForAutofill="no"
+            onFocus={forceShowKeyboard}
+            onPressIn={() => {
+              phoneInputRef.current?.focus();
+              forceShowKeyboard();
+            }}
+            onSubmitEditing={onSubmit}
+            maxLength={15}
+            style={styles.input}
+          />
+        </View>
+
+        <Pressable
+          onPress={onSubmit}
+          disabled={disabled}
+          style={({pressed}) => [
+            styles.button,
+            {
+              opacity: disabled ? 0.6 : pressed ? 0.9 : 1,
+            },
+          ]}>
+          <Text style={styles.buttonText}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
-        <SafeAreaView style={styles.safeArea}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingHorizontal: dynamicStyles.horizPadding,
-                paddingTop: dynamicStyles.scrollPadding,
-                paddingBottom: dynamicStyles.scrollPadding,
-              },
-            ]}
-            bounces={false}>
-            <View
-              style={[
-                styles.card,
-                {
-                  maxWidth: dynamicStyles.maxFormWidth,
-                  padding: dynamicStyles.cardPadding,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.title,
-                  {
-                    fontSize: dynamicStyles.titleSize,
-                    marginTop: dynamicStyles.titleMarginTop,
-                  },
-                ]}>
-                Bem-vindo 👋
-              </Text>
-              <Text style={styles.subtitle}>
-                Entre com seu E-mail e Telefone
-              </Text>
-
-              <View style={styles.formContainer}>
-                <Text style={styles.label}>E-mail</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="seu@email.com"
-                  placeholderTextColor="#9ca3af"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  returnKeyType="next"
-                  onSubmitEditing={() => phoneInputRef.current?.focus()}
-                  style={styles.input}
-                />
-                <Text style={[styles.label, styles.labelMargin]}>Telefone</Text>
-                <TextInput
-                  ref={phoneInputRef}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  placeholder="(00) 00000-0000"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={onSubmit}
-                  maxLength={15}
-                  style={styles.input}
-                />
-              </View>
-
-              <Pressable
-                onPress={onSubmit}
-                disabled={disabled}
-                style={({pressed}) => [
-                  styles.button,
-                  {
-                    opacity: disabled ? 0.6 : pressed ? 0.9 : 1,
-                  },
-                ]}>
-                <Text style={styles.buttonText}>
-                  {loading ? 'Entrando...' : 'Entrar'}
-                </Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
+      <SafeAreaView style={styles.safeArea}>
+        {Platform.OS === 'ios' ? (
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={styles.keyboardView}
+            keyboardVerticalOffset={0}>
+            {form}
+          </KeyboardAvoidingView>
+        ) : (
+          form
+        )}
+      </SafeAreaView>
     </View>
   );
 }
@@ -195,7 +241,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100%',
   },
   card: {
     width: '100%',

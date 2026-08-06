@@ -16,7 +16,7 @@ import {FormatCentToBRL} from '../utils/formart_brl';
 import PrinterService from '../services/service_printer';
 import SitefReturn from '../services/services_tef/sitefReturn';
 import SitefController from '../services/services_tef/sitefController';
-import {post} from '../utils/request';
+import {get, post} from '../utils/request';
 
 const printerService = new PrinterService();
 const sitefController = new SitefController();
@@ -39,6 +39,8 @@ export default function Checkout({navigation}: {navigation: any}) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
 
   const [listOfResults, setListOfResults] = useState<ResultItem[]>([]);
+  const [tefToken, setTefToken] = useState<string>('');
+  const [tokenLoading, setTokenLoading] = useState(true);
 
   const paymentMethods: Record<PaymentMethod, string> = {
     Crédito: 'CREDITO',
@@ -62,6 +64,11 @@ export default function Checkout({navigation}: {navigation: any}) {
     optionReceived: string,
     paymentMethod: PaymentMethod,
   ) {
+    if (!tefToken) {
+      Alert.alert('Alerta', 'Token TEF não disponível. Tente novamente.');
+      return;
+    }
+
     if (isIpAdressValid()) {
       sitefController.sitefEntrys.setValue(parsedAmount.toString());
       sitefController.sitefEntrys.setNumberInstallments(parseInt('1', 10));
@@ -69,6 +76,7 @@ export default function Checkout({navigation}: {navigation: any}) {
       sitefController.sitefEntrys.setPaymentMethod(paymentMethod);
       sitefController.sitefEntrys.setInstallmentsMethods('Loja');
       sitefController.sitefEntrys.setEmpresaSitef('24880034');
+      sitefController.sitefEntrys.setTokenRegistroTls(tefToken);
 
       try {
         sitefController.sendParamsSitef(optionReceived);
@@ -172,7 +180,8 @@ export default function Checkout({navigation}: {navigation: any}) {
   async function buildCabecalhoNota(): Promise<string> {
     const L_NOTECAB = 32;
     const nomeLoja =
-      (await AsyncStorage.getItem('@SkallApp:filiaNome')) || 'Skall Mercado';
+      (await AsyncStorage.getItem('@SkallApp:filiaNome')) ||
+      'Skall Mercadinho 24h';
     const dataHora = new Date().toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -317,6 +326,41 @@ export default function Checkout({navigation}: {navigation: any}) {
   }, []);
 
   useEffect(() => {
+    const loadTefToken = async () => {
+      try {
+        setTokenLoading(true);
+        const usuarioId = await AsyncStorage.getItem('@SkallApp:usuarioId');
+
+        if (!usuarioId) {
+          Alert.alert(
+            'Erro',
+            'Usuário não identificado. Faça login novamente.',
+            [{text: 'OK', onPress: () => navigation.goBack()}],
+          );
+          return;
+        }
+
+        const res = await get(`api/v1/filial_usuarios/${usuarioId}`);
+
+        if (res?.response?.ok && res.body?.token) {
+          setTefToken(res.body.token);
+        } else {
+          Alert.alert(
+            'Erro',
+            res?.body?.error ?? 'Token TEF não encontrado para este usuário.',
+          );
+        }
+      } catch {
+        Alert.alert('Erro', 'Não foi possível carregar o token TEF.');
+      } finally {
+        setTokenLoading(false);
+      }
+    };
+
+    loadTefToken();
+  }, [navigation]);
+
+  useEffect(() => {
     startConnectPrinterIntern();
   }, []);
 
@@ -400,10 +444,25 @@ export default function Checkout({navigation}: {navigation: any}) {
           </View>
           <Text style={styles.paymentMethodsTitle}>Formas de pagamento</Text>
 
+          {tokenLoading ? (
+            <View style={styles.tokenLoadingContainer}>
+              <ActivityIndicator size="small" color="#2563eb" />
+              <Text style={styles.tokenLoadingText}>
+                Carregando token TEF...
+              </Text>
+            </View>
+          ) : !tefToken ? (
+            <Text style={styles.tokenErrorText}>
+              Token TEF indisponível. Volte e tente novamente.
+            </Text>
+          ) : null}
+
           <BigPayButton
             label="Cartão de Crédito"
             icon="card-outline"
             color="#2563eb"
+            loading={tokenLoading}
+            disabled={!tefToken || tokenLoading}
             onPress={() => startActionTEF('SALE', 'Crédito')}
           />
 
@@ -411,6 +470,8 @@ export default function Checkout({navigation}: {navigation: any}) {
             label="Cartão de Débito"
             icon="card"
             color="#0ea5e9"
+            loading={tokenLoading}
+            disabled={!tefToken || tokenLoading}
             onPress={() => startActionTEF('SALE', 'Débito')}
           />
 
@@ -418,6 +479,8 @@ export default function Checkout({navigation}: {navigation: any}) {
             label="PIX"
             icon="qr-code-outline"
             color="#16a34a"
+            loading={tokenLoading}
+            disabled={!tefToken || tokenLoading}
             onPress={() => startActionTEF('SALE', 'PIX')}
           />
 
@@ -425,6 +488,8 @@ export default function Checkout({navigation}: {navigation: any}) {
             label="Voucher"
             icon="cash-outline"
             color="#16a34a"
+            loading={tokenLoading}
+            disabled={!tefToken || tokenLoading}
             onPress={() => startActionTEF('SALE', 'Crédito')}
           />
 
@@ -475,22 +540,26 @@ function BigPayButton({
   icon,
   color,
   loading,
+  disabled,
   onPress,
 }: {
   label: string;
   icon: string;
   color: string;
   loading?: boolean;
+  disabled?: boolean;
   onPress: () => void;
 }) {
+  const isDisabled = !!loading || !!disabled;
+
   return (
     <Pressable
-      disabled={!!loading}
+      disabled={isDisabled}
       onPress={onPress}
       style={({pressed}) => [
         styles.payButton,
         {backgroundColor: color},
-        {opacity: loading ? 0.7 : pressed ? 0.9 : 1},
+        {opacity: isDisabled ? 0.5 : pressed ? 0.9 : 1},
       ]}>
       {loading ? (
         <ActivityIndicator size="small" color="#fff" />
@@ -498,7 +567,7 @@ function BigPayButton({
         <Ionicons name={icon as any} size={22} color="#fff" />
       )}
       <Text style={styles.payButtonText}>
-        {loading ? 'Processando...' : label}
+        {loading ? 'Carregando...' : label}
       </Text>
     </Pressable>
   );
@@ -577,6 +646,20 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+  tokenLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tokenLoadingText: {
+    color: '#94a3b8',
+    fontSize: 13,
+  },
+  tokenErrorText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
   },
   fiservInfo: {
     marginTop: 6,

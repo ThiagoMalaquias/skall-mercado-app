@@ -6,6 +6,7 @@ export default class SitefEntrys {
     this.paymentMethod = 'Crédito';
     this.installmentsMethod = 'Loja';
     this.empresaSitef = '00000000';
+    this.tokenRegistroTls = '';
   }
 
   getValue() {
@@ -32,6 +33,10 @@ export default class SitefEntrys {
     return this.empresaSitef;
   }
 
+  getTokenRegistroTls() {
+    return this.tokenRegistroTls;
+  }
+
   setValue(value) {
     this.value = value;
   }
@@ -46,6 +51,10 @@ export default class SitefEntrys {
 
   setEmpresaSitef(empresaSitef) {
     this.empresaSitef = empresaSitef;
+  }
+
+  setTokenRegistroTls(tokenRegistroTls) {
+    this.tokenRegistroTls = tokenRegistroTls;
   }
 
   setPaymentMethod(paymentMethod) {

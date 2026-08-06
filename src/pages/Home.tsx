@@ -128,10 +128,13 @@ export default function Home({navigation}: {navigation: any}) {
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [searchText, setSearchText] = useState('');
   const barcodeInputRef = useRef<TextInput>(null);
   const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastBarcodeRef = useRef<string>('');
   const isProcessingRef = useRef<boolean>(false);
+  const searchFocusedRef = useRef<boolean>(false);
   const cartScrollViewRef = useRef<ScrollView>(null);
 
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -143,9 +146,7 @@ export default function Home({navigation}: {navigation: any}) {
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [cpfValidated, setCpfValidated] = useState(false);
   const [cpfLoading, setCpfLoading] = useState(false);
-  const [bebidasGrupoIds, setBebidasGrupoIds] = useState<string[] | null>(
-    null,
-  );
+  const [bebidasGrupoIds, setBebidasGrupoIds] = useState<string[] | null>(null);
   const [bebidasLoading, setBebidasLoading] = useState(false);
   const [finalizeLoading, setFinalizeLoading] = useState(false);
 
@@ -228,6 +229,33 @@ export default function Home({navigation}: {navigation: any}) {
     setTimeout(() => {
       setToastVisible(false);
     }, 2300);
+  }, []);
+
+  const focusBarcodeIfNeeded = useCallback(() => {
+    if (searchFocusedRef.current || cpfModalVisible) {
+      return;
+    }
+    barcodeInputRef.current?.focus();
+  }, [cpfModalVisible]);
+
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchText(text);
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    searchDebounceRef.current = setTimeout(() => {
+      setQuery(text);
+    }, 400);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    setSearchText('');
+    setQuery('');
   }, []);
 
   const handleImageError = (itemId: string) => {
@@ -347,12 +375,12 @@ export default function Home({navigation}: {navigation: any}) {
           lastBarcodeRef.current = '';
 
           setTimeout(() => {
-            barcodeInputRef.current?.focus();
-          }, 500); // Reduzido para 500ms já que não precisa fechar alert
-        }, 300); // Reduzido para 300ms
+            focusBarcodeIfNeeded();
+          }, 500);
+        }, 300);
       }
     },
-    [showToast],
+    [showToast, focusBarcodeIfNeeded],
   );
 
   const handleBarcodeChange = useCallback(
@@ -409,9 +437,7 @@ export default function Home({navigation}: {navigation: any}) {
     const ids = await ensureBebidasGrupoIds();
     const cartItems = Object.values(cart);
     const temBebida = ids.length
-      ? cartItems.some(ci =>
-          ids.includes(String(ci.product.grupo_produto_id)),
-        )
+      ? cartItems.some(ci => ids.includes(String(ci.product.grupo_produto_id)))
       : false;
 
     if (temBebida && !cpfValidated) {
@@ -522,11 +548,11 @@ export default function Home({navigation}: {navigation: any}) {
   useFocusEffect(
     useCallback(() => {
       const t = setTimeout(() => {
-        barcodeInputRef.current?.focus();
+        focusBarcodeIfNeeded();
       }, 150);
 
       return () => clearTimeout(t);
-    }, []),
+    }, [focusBarcodeIfNeeded]),
   );
 
   useFocusEffect(
@@ -535,22 +561,23 @@ export default function Home({navigation}: {navigation: any}) {
       lastBarcodeRef.current = '';
       setBarcodeInput('');
 
-      const t = setTimeout(() => barcodeInputRef.current?.focus(), 150);
+      const t = setTimeout(() => focusBarcodeIfNeeded(), 150);
       return () => clearTimeout(t);
-    }, []),
+    }, [focusBarcodeIfNeeded]),
   );
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      barcodeInputRef.current?.focus();
+      focusBarcodeIfNeeded();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [focusBarcodeIfNeeded]);
 
   useEffect(() => {
     return () => {
       if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, []);
 
@@ -649,7 +676,7 @@ export default function Home({navigation}: {navigation: any}) {
           <View style={styles.headerLeft}>
             <Ionicons name="storefront" size={24} color="#2563eb" />
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Skall Mercado</Text>
+              <Text style={styles.headerTitle}>Skall Mercadinho 24h</Text>
               <Text style={styles.headerSubtitle}>PDV - Ponto de Venda</Text>
             </View>
           </View>
@@ -678,6 +705,42 @@ export default function Home({navigation}: {navigation: any}) {
               </Text>
             </Pressable>
           </View>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color="#94a3b8" />
+          <TextInput
+            value={searchText}
+            onChangeText={handleSearchChange}
+            placeholder="Buscar por nome ou código..."
+            placeholderTextColor="#64748b"
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            blurOnSubmit
+            onFocus={() => {
+              searchFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              searchFocusedRef.current = false;
+              setTimeout(() => focusBarcodeIfNeeded(), 200);
+            }}
+            onSubmitEditing={() => {
+              if (searchDebounceRef.current) {
+                clearTimeout(searchDebounceRef.current);
+              }
+              setQuery(searchText);
+            }}
+          />
+          {searchText.length > 0 && (
+            <Pressable
+              onPress={clearSearch}
+              hitSlop={8}
+              style={styles.searchClearButton}>
+              <Ionicons name="close-circle" size={18} color="#64748b" />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -910,10 +973,12 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2a44',
     backgroundColor: '#0f172a',
+    gap: 12,
   },
   headerContent: {
     flexDirection: 'row',
@@ -941,6 +1006,27 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     alignItems: 'flex-end',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#1f2a44',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: 'white',
+    fontSize: 15,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
+  searchClearButton: {
+    padding: 2,
   },
   clearCartButton: {
     flexDirection: 'row',
